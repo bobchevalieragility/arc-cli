@@ -9,9 +9,8 @@ use crate::tasks::select_aws_profile::SelectAwsProfileExecutor;
 #[derive(Parser, Debug)]
 #[command(author, version, about = "CLI Tool for Arc Backend")]
 pub struct Args {
-    //TODO should this be optional?
     #[command(subcommand)]
-    command: Option<ArcCommand>,
+    command: ArcCommand,
 }
 
 #[derive(Subcommand, Debug)]

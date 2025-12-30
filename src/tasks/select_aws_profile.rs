@@ -27,9 +27,9 @@ impl Executor for SelectAwsProfileExecutor {
         // unless the user specifically requested to switch it
         if let Ok(current_profile) = env::var("AWS_PROFILE") {
             match state.args.command {
-                Some(ArcCommand::Switch{ aws_profile: true, kube_context: false }) |
-                Some(ArcCommand::Switch{ aws_profile: true, kube_context: true }) |
-                Some(ArcCommand::Switch{ aws_profile: false, kube_context: false }) => {
+                ArcCommand::Switch{ aws_profile: true, kube_context: false } |
+                ArcCommand::Switch{ aws_profile: true, kube_context: true } |
+                ArcCommand::Switch{ aws_profile: false, kube_context: false } => {
                     // All of these cases are interpreted as the user wanting to switch AWS profile
                 },
                 _ => {
