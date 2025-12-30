@@ -1,13 +1,16 @@
+pub mod get_aws_secret;
 pub mod select_aws_profile;
 pub mod select_kube_context;
 
 use std::collections::{HashSet, HashMap};
 use crate::{ArcCommand, Args};
+use crate::tasks::get_aws_secret::GetAwsSecretExecutor;
 use crate::tasks::select_aws_profile::SelectAwsProfileExecutor;
 use crate::tasks::select_kube_context::SelectKubeContextExecutor;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Task {
+    GetAwsSecret,
     SelectAwsProfile,
     SelectKubeContext,
 }
@@ -16,6 +19,9 @@ impl Task {
     pub fn command_tasks(command: &ArcCommand) -> Vec<Task> {
         let mut tasks = Vec::new();
         match command {
+            ArcCommand::AwsSecret => {
+                tasks.push(Task::GetAwsSecret);
+            },
             ArcCommand::Switch { aws_profile: true, .. } => {
                 tasks.push(Task::SelectAwsProfile);
             },
@@ -34,6 +40,7 @@ impl Task {
 impl Executor for Task {
     fn needs(&self) -> HashSet<Task> {
         match self {
+            Task::GetAwsSecret => GetAwsSecretExecutor.needs(),
             Task::SelectAwsProfile => SelectAwsProfileExecutor.needs(),
             Task::SelectKubeContext => SelectKubeContextExecutor.needs(),
         }
@@ -41,6 +48,7 @@ impl Executor for Task {
 
     fn execute(&self, state: &State) -> TaskResult {
         match self {
+            Task::GetAwsSecret => GetAwsSecretExecutor.execute(state),
             Task::SelectAwsProfile => SelectAwsProfileExecutor.execute(state),
             Task::SelectKubeContext => SelectKubeContextExecutor.execute(state),
         }
@@ -48,6 +56,7 @@ impl Executor for Task {
 }
 
 pub enum TaskResult {
+    AwsSecret(Option<String>),
     AwsProfile(Option<String>),
     KubeContext(Option<String>),
 }
