@@ -4,7 +4,6 @@ use aws_config::profile;
 use aws_types::os_shim_internal::{Env, Fs};
 use std::collections::HashSet;
 use std::env;
-use pollster::FutureExt as _;
 use crate::ArcCommand;
 use crate::tasks::{Executor, Task, State, TaskResult};
 
@@ -30,7 +29,7 @@ impl Executor for SelectAwsProfileExecutor {
                 _ => {
                     // Remaining Switch case and all other commands result in keeping current profile
                     outro(format!("Using existing AWS profile: {}", current_profile)).unwrap();
-                    return TaskResult::AwsProfile(None)
+                    return TaskResult::AwsProfile{ old: Some(current_profile), new: None }
                 }
             }
         }
@@ -39,7 +38,7 @@ impl Executor for SelectAwsProfileExecutor {
         let selected_aws_profile = prompt_for_aws_profile();
         outro(format!("AWS profile will be set to: {}", selected_aws_profile)).unwrap();
 
-        TaskResult::AwsProfile(Some(selected_aws_profile))
+        TaskResult::AwsProfile{ old: None, new: Some(selected_aws_profile) }
     }
 }
 
@@ -63,9 +62,10 @@ fn get_available_aws_profiles() -> Vec<String> {
     let config_files = EnvConfigFiles::default();
 
     // Block on the async call to load env config sections
-    let config_sections = profile::load(&fs, &env, &config_files, None)
-        .block_on()
-        .unwrap();
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let config_sections = runtime.block_on(async {
+        profile::load(&fs, &env, &config_files, None).await
+    }).unwrap();
 
     // Extract profile names
     let mut profile_names: Vec<String> = config_sections

@@ -57,14 +57,14 @@ impl Executor for Task {
 
 pub enum TaskResult {
     AwsSecret(Option<String>),
-    AwsProfile(Option<String>),
+    AwsProfile{ old: Option<String>, new: Option<String> },
     KubeContext(Option<String>),
 }
 
 impl TaskResult {
     pub fn eval_string(&self) -> Option<String> {
         match self {
-            TaskResult::AwsProfile(Some(aws_profile)) => {
+            TaskResult::AwsProfile{ old: _, new: Some(aws_profile) } => {
                 Some(String::from(format!("export AWS_PROFILE={aws_profile}\n")))
             },
             TaskResult::KubeContext(Some(kubeconfig_path)) => {
