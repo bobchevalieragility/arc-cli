@@ -66,13 +66,12 @@ impl TaskResult {
 
 pub struct State<'a> {
     args: &'a Args,
-    args_os: &'a Vec<std::ffi::OsString>,
     results: &'a HashMap<Goal, TaskResult>,
 }
 
 impl<'a> State<'a> {
-    pub fn new(args: &'a Args, args_os: &'a Vec<std::ffi::OsString>, results: &'a HashMap<Goal, TaskResult>) -> State<'a> {
-        State { args, args_os, results }
+    pub fn new(args: &'a Args, results: &'a HashMap<Goal, TaskResult>) -> State<'a> {
+        State { args, results }
     }
 }
 

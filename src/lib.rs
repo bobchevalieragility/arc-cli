@@ -1,7 +1,7 @@
 mod tasks;
 
 use std::collections::{HashMap, HashSet};
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Parser, Subcommand};
 use topo_sort::{SortResults, TopoSort};
 use crate::tasks::{Executor, Goal, State, Task, TaskResult, ALL_TASKS};
 use crate::tasks::select_aws_profile::SelectAwsProfileExecutor;
@@ -29,23 +29,7 @@ enum ArcCommand {
     }
 }
 
-// pub fn run(args: &Args) {
-//     match &args.command {
-//         Some(Command::Switch { aws_profile, kube_context }) => {
-//             if *list {
-//                 println!("Printing testing lists...");
-//             } else {
-//                 println!("Not printing testing lists...");
-//             }
-//         }
-//         // None => {}
-//         _ => {}
-//     }
-// }
-
-
-pub fn run(args: &Args, args_os: &Vec<std::ffi::OsString>) {
-    // print!("Args: {:?}", args);
+pub fn run(args: &Args) {
     // Create a map indexed by the Goal each available Task provides
     let goal_providers: HashMap<Goal, &Task> = ALL_TASKS
         .iter()
@@ -54,9 +38,6 @@ pub fn run(args: &Args, args_os: &Vec<std::ffi::OsString>) {
 
     //TODO recursively determine needed tasks based on args and dependencies
     let needed_tasks = vec![
-        // Task::AwsProfile(AwsProfileExecutor),
-        // Task::SpawnShell(SpawnShellExecutor),
-        // Task::ConfigureEnvironment(ConfigureEnvironmentExecutor),
         Task::SelectAwsProfile(SelectAwsProfileExecutor),
     ];
 
@@ -72,8 +53,6 @@ pub fn run(args: &Args, args_os: &Vec<std::ffi::OsString>) {
         SortResults::Full(sorted_nodes) => {
             execute_tasks(
                 args,
-                args_os,
-                // sorted_nodes.iter().map(|g| *goal_providers.get(g).unwrap()).collect()
                 sorted_nodes
                     .iter()
                     .map(|g| *goal_providers.get(g).expect(&format!("No task provides goal: {:?}", g)))
@@ -86,12 +65,12 @@ pub fn run(args: &Args, args_os: &Vec<std::ffi::OsString>) {
     }
 }
 
-fn execute_tasks(args: &Args, args_os: &Vec<std::ffi::OsString>, tasks: Vec<&Task>) {
+fn execute_tasks(args: &Args, tasks: Vec<&Task>) {
     let mut eval_string = String::new();
     let mut results: HashMap<Goal, TaskResult> = HashMap::new();
 
     for task in tasks {
-        let state = State::new(args, args_os, &results);
+        let state = State::new(args, &results);
         let result = task.execute(&state);
         if let Some(s) = result.eval_string() {
             eval_string.push_str(&s);
