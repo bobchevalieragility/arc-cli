@@ -16,10 +16,6 @@ impl Executor for SelectAwsProfileExecutor {
         HashSet::new()
     }
 
-    // fn provides(&self) -> Goal {
-    //     Goal::AwsProfileSelected
-    // }
-
     fn execute(&self, state: &State) -> TaskResult{
         intro("AWS Profile Selector").unwrap();
 
@@ -27,8 +23,7 @@ impl Executor for SelectAwsProfileExecutor {
         // unless the user specifically requested to switch it
         if let Ok(current_profile) = env::var("AWS_PROFILE") {
             match state.args.command {
-                ArcCommand::Switch{ aws_profile: true, kube_context: false } |
-                ArcCommand::Switch{ aws_profile: true, kube_context: true } |
+                ArcCommand::Switch{ aws_profile: true, .. } |
                 ArcCommand::Switch{ aws_profile: false, kube_context: false } => {
                     // All of these cases are interpreted as the user wanting to switch AWS profile
                 },
@@ -44,7 +39,6 @@ impl Executor for SelectAwsProfileExecutor {
         let selected_aws_profile = prompt_for_aws_profile();
         outro(format!("AWS profile will be set to: {}", selected_aws_profile)).unwrap();
 
-        // Ok(TaskResult::AwsProfile(selected_profile))
         TaskResult::AwsProfile(Some(selected_aws_profile))
     }
 }

@@ -49,7 +49,7 @@ impl Executor for Task {
 
 pub enum TaskResult {
     AwsProfile(Option<String>),
-    KubeContext(Option<String>), //TODO should this contain a Path instead of a String?
+    KubeContext(Option<String>),
 }
 
 impl TaskResult {
@@ -57,6 +57,9 @@ impl TaskResult {
         match self {
             TaskResult::AwsProfile(Some(aws_profile)) => {
                 Some(String::from(format!("export AWS_PROFILE={aws_profile}\n")))
+            },
+            TaskResult::KubeContext(Some(kubeconfig_path)) => {
+                Some(String::from(format!("export KUBECONFIG={kubeconfig_path}\n")))
             },
             _ => None,
         }
