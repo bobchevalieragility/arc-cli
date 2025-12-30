@@ -1,4 +1,5 @@
 use cliclack::{intro, outro, select};
+use async_trait::async_trait;
 use aws_runtime::env_config::file::EnvConfigFiles;
 use aws_config::profile;
 use aws_types::os_shim_internal::{Env, Fs};
@@ -10,12 +11,13 @@ use crate::tasks::{Executor, Task, State, TaskResult};
 #[derive(Debug)]
 pub struct SelectAwsProfileExecutor;
 
+#[async_trait]
 impl Executor for SelectAwsProfileExecutor {
     fn needs(&self) -> HashSet<Task> {
         HashSet::new()
     }
 
-    fn execute(&self, state: &State) -> TaskResult{
+    async fn execute(&self, state: &State) -> TaskResult{
         intro("AWS Profile Selector").unwrap();
 
         // If the AWS_PROFILE environment variable is already set, then we'll keep it,
@@ -35,17 +37,17 @@ impl Executor for SelectAwsProfileExecutor {
         }
 
         // Prompt user to select an AWS profile
-        let selected_aws_profile = prompt_for_aws_profile();
+        let selected_aws_profile = prompt_for_aws_profile().await;
         outro(format!("AWS profile will be set to: {}", selected_aws_profile)).unwrap();
 
         TaskResult::AwsProfile{ old: None, new: Some(selected_aws_profile) }
     }
 }
 
-fn prompt_for_aws_profile() -> String {
-    let mut menu = select("Which AWS profile would you like to use?");
+async fn prompt_for_aws_profile() -> String {
+    let available_profiles = get_available_aws_profiles().await;
 
-    let available_profiles = get_available_aws_profiles();
+    let mut menu = select("Which AWS profile would you like to use?");
     for profile in &available_profiles {
         menu = menu.item(profile, profile, "");
     }
@@ -53,7 +55,7 @@ fn prompt_for_aws_profile() -> String {
     menu.interact().unwrap().to_string()
 }
 
-fn get_available_aws_profiles() -> Vec<String> {
+async fn get_available_aws_profiles() -> Vec<String> {
     // Use real filesystem and environment access
     let fs = Fs::real();
     let env = Env::real();
@@ -61,11 +63,10 @@ fn get_available_aws_profiles() -> Vec<String> {
     // Load default profile files (~/.aws/config and ~/.aws/credentials)
     let config_files = EnvConfigFiles::default();
 
-    // Block on the async call to load env config sections
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    let config_sections = runtime.block_on(async {
-        profile::load(&fs, &env, &config_files, None).await
-    }).unwrap();
+    // Load env config sections asynchronously
+    let config_sections = profile::load(&fs, &env, &config_files, None)
+        .await
+        .unwrap();
 
     // Extract profile names
     let mut profile_names: Vec<String> = config_sections

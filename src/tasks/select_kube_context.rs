@@ -1,4 +1,5 @@
 use cliclack::{intro, outro, select};
+use async_trait::async_trait;
 use std::collections::HashSet;
 use std::{env, fs};
 use std::path::PathBuf;
@@ -9,12 +10,13 @@ use crate::tasks::{Executor, Task, State, TaskResult};
 #[derive(Debug)]
 pub struct SelectKubeContextExecutor;
 
+#[async_trait]
 impl Executor for SelectKubeContextExecutor {
     fn needs(&self) -> HashSet<Task> {
         HashSet::new()
     }
 
-    fn execute(&self, state: &State) -> TaskResult{
+    async fn execute(&self, state: &State) -> TaskResult{
         intro("Kube Context Selector").unwrap();
 
         // If the KUBECONFIG environment variable is already set, then we'll keep it,

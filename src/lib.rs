@@ -31,7 +31,7 @@ enum ArcCommand {
     // }
 }
 
-pub fn run(args: &Args) {
+pub async fn run(args: &Args) {
     // Recursively determine which tasks are needed for the given command
     let needed_tasks = get_tasks_for_command(&args.command);
 
@@ -44,7 +44,7 @@ pub fn run(args: &Args) {
     // Topologically sort the nodes so that dependent tasks are executed after their dependencies
     let topo_sort = TopoSort::from_map(needed_nodes);
     match topo_sort.into_vec_nodes() {
-        SortResults::Full(sorted_tasks) => execute_tasks(args, sorted_tasks),
+        SortResults::Full(sorted_tasks) => execute_tasks(args, sorted_tasks).await,
         SortResults::Partial(_) => panic!("There's a cycle in the dependency graph!: {:?}", needed_tasks),
     }
 }
@@ -67,13 +67,13 @@ fn get_tasks_for_command(command: &ArcCommand) -> HashSet<Task> {
     needed_tasks
 }
 
-fn execute_tasks(args: &Args, tasks: Vec<Task>) {
+async fn execute_tasks(args: &Args, tasks: Vec<Task>) {
     let mut eval_string = String::new();
     let mut results: HashMap<Task, TaskResult> = HashMap::new();
 
     for task in tasks {
         let state = State::new(args, &results);
-        let result = task.execute(&state);
+        let result = task.execute(&state).await;
         if let Some(s) = result.eval_string() {
             eval_string.push_str(&s);
         }

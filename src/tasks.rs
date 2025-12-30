@@ -2,6 +2,7 @@ pub mod get_aws_secret;
 pub mod select_aws_profile;
 pub mod select_kube_context;
 
+use async_trait::async_trait;
 use std::collections::{HashSet, HashMap};
 use crate::{ArcCommand, Args};
 use crate::tasks::get_aws_secret::GetAwsSecretExecutor;
@@ -37,6 +38,7 @@ impl Task {
     }
 }
 
+#[async_trait]
 impl Executor for Task {
     fn needs(&self) -> HashSet<Task> {
         match self {
@@ -46,11 +48,11 @@ impl Executor for Task {
         }
     }
 
-    fn execute(&self, state: &State) -> TaskResult {
+    async fn execute(&self, state: &State) -> TaskResult {
         match self {
-            Task::GetAwsSecret => GetAwsSecretExecutor.execute(state),
-            Task::SelectAwsProfile => SelectAwsProfileExecutor.execute(state),
-            Task::SelectKubeContext => SelectKubeContextExecutor.execute(state),
+            Task::GetAwsSecret => GetAwsSecretExecutor.execute(state).await,
+            Task::SelectAwsProfile => SelectAwsProfileExecutor.execute(state).await,
+            Task::SelectKubeContext => SelectKubeContextExecutor.execute(state).await,
         }
     }
 }
@@ -86,8 +88,9 @@ impl<'a> State<'a> {
     }
 }
 
+#[async_trait]
 pub trait Executor {
     fn needs(&self) -> HashSet<Task>;
 
-    fn execute(&self, state: &State) -> TaskResult;
+    async fn execute(&self, state: &State) -> TaskResult;
 }

@@ -1,25 +1,21 @@
 use cliclack::{intro, outro, select};
-use aws_runtime::env_config::file::EnvConfigFiles;
-use aws_config::{profile, BehaviorVersion};
-use aws_types::os_shim_internal::{Env, Fs};
+use async_trait::async_trait;
+use aws_config::BehaviorVersion;
 use std::collections::HashSet;
-use std::env;
 use aws_sdk_secretsmanager::Client;
-use aws_sdk_secretsmanager::error::SdkError;
-use aws_sdk_secretsmanager::operation::list_secrets::ListSecretsOutput;
 use aws_types::region::Region;
-use crate::ArcCommand;
 use crate::tasks::{Executor, Task, State, TaskResult};
 
 #[derive(Debug)]
 pub struct GetAwsSecretExecutor;
 
+#[async_trait]
 impl Executor for GetAwsSecretExecutor {
     fn needs(&self) -> HashSet<Task> {
         HashSet::from([Task::SelectAwsProfile])
     }
 
-    fn execute(&self, state: &State) -> TaskResult{
+    async fn execute(&self, state: &State) -> TaskResult{
         intro("AWS Secret Selector").unwrap();
 
         // Get the desired profile name from the result of the SelectAwsProfile task
@@ -33,24 +29,16 @@ impl Executor for GetAwsSecretExecutor {
             _ => panic!("Expected TaskResult::AwsProfile"),
         };
 
-        let runtime = tokio::runtime::Runtime::new().unwrap();
-        let aws_config = runtime.block_on(async {
-            aws_config::defaults(BehaviorVersion::latest())
-                .region(Region::new("us-west-2"))
-                .profile_name(profile_name)
-                .load()
-                .await
-        });
+        let aws_config = aws_config::defaults(BehaviorVersion::latest())
+            .region(Region::new("us-west-2"))
+            .profile_name(profile_name)
+            .load()
+            .await;
         let client = Client::new(&aws_config);
 
-        // Paginate through all secrets in the account
-        // let mut list_secrets_paginator = client.list_secrets().into_paginator().send().await?;
-
-        // Block on the async call to list secrets
+        // List secrets asynchronously
         let paginator = client.list_secrets().into_paginator();
-        let pages: Vec<_> = runtime.block_on(async {
-            paginator.send().collect::<Vec<_>>().await
-        });
+        let pages: Vec<_> = paginator.send().collect::<Vec<_>>().await;
 
         // Process the results
         let mut all_secrets: Vec<String> = Vec::new();
@@ -91,7 +79,7 @@ impl Executor for GetAwsSecretExecutor {
     }
 }
 
-// fn prompt_for_aws_profile() -> String {
+// fn prompt_for_aws_secret() -> String {
 //     let mut menu = select("Which AWS profile would you like to use?");
 //
 //     let available_profiles = get_available_aws_profiles();

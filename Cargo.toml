@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+async-trait = "0.1"
 aws-config = "1.8.12"
 aws-runtime = "1.5.17"
 aws-sdk-secretsmanager = "1.97.0"
