@@ -6,19 +6,19 @@ use std::collections::HashSet;
 use std::env;
 use pollster::FutureExt as _;
 use crate::ArcCommand;
-use crate::tasks::{Executor, Goal, State, TaskResult};
+use crate::tasks::{Executor, Task, State, TaskResult};
 
 #[derive(Debug)]
 pub struct SelectAwsProfileExecutor;
 
 impl Executor for SelectAwsProfileExecutor {
-    fn needs(&self) -> HashSet<Goal> {
+    fn needs(&self) -> HashSet<Task> {
         HashSet::new()
     }
 
-    fn provides(&self) -> Goal {
-        Goal::AwsProfileSelected
-    }
+    // fn provides(&self) -> Goal {
+    //     Goal::AwsProfileSelected
+    // }
 
     fn execute(&self, state: &State) -> TaskResult{
         intro("AWS Profile Selector").unwrap();
