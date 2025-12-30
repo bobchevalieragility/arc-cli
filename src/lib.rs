@@ -22,10 +22,10 @@ enum ArcCommand {
         #[arg(short, long)]
         kube_context: bool,
     },
-    Vault {
-        #[arg(short, long)]
-        secret: String,
-    }
+    // Vault {
+    //     #[arg(short, long)]
+    //     secret: String,
+    // }
 }
 
 pub fn run(args: &Args) {

@@ -1,7 +1,7 @@
 pub mod select_aws_profile;
 
 use std::collections::{HashSet, HashMap};
-use crate::Args;
+use crate::{ArcCommand, Args};
 use crate::tasks::select_aws_profile::SelectAwsProfileExecutor;
 
 pub const ALL_TASKS: [Task; 1] = [
@@ -15,12 +15,14 @@ pub enum Task {
 
 impl Executor for Task {
     fn needs(&self) -> HashSet<Goal> {
+        //TODO can this just return Task?
         match self {
             Task::SelectAwsProfile(e) => e.needs(),
         }
     }
 
     fn provides(&self) -> Goal {
+        //TODO if we just return Task above can we remove this method?
         match self {
             Task::SelectAwsProfile(e) => e.provides(),
         }
@@ -35,19 +37,28 @@ impl Executor for Task {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Goal {
-    // TODO map goals to subcommands
     AwsProfileSelected,
+    KubeContextSelected,
 }
 
-// impl Goal {
-//     pub fn satisfies_command(&self, command: &Command) -> bool {
-//         match (self, command) {
-//             (Goal::AwsProfileSelected, Command::Switch { aws_profile: true, .. }) => true,
-//             (Goal::ShellSpawned, Some(crate::Command::Switch { .. })) => true,
-//             _ => false,
-//         }
-//     }
-// }
+impl Goal {
+    pub fn command_goals(command: &ArcCommand) -> HashSet<Goal> {
+        let mut goals = HashSet::new();
+        match command {
+            ArcCommand::Switch { aws_profile: true, .. } => {
+                goals.insert(Goal::AwsProfileSelected);
+            },
+            ArcCommand::Switch { kube_context: true, .. } => {
+                goals.insert(Goal::KubeContextSelected);
+            },
+            ArcCommand::Switch { aws_profile: false, kube_context: false } => {
+                goals.insert(Goal::AwsProfileSelected);
+                goals.insert(Goal::KubeContextSelected);
+            },
+        }
+        goals
+    }
+}
 
 pub enum TaskResult {
     AwsProfile(Option<String>),
