@@ -14,26 +14,16 @@ pub struct SelectAwsProfileTask;
 #[async_trait]
 impl Task for SelectAwsProfileTask {
     async fn execute(&self, args: &Args, _state: &HashMap<Goal, TaskResult>) -> GoalStatus {
-        intro("AWS Profile Selector").unwrap();
-
-        // If the AWS_PROFILE environment variable is already set, then we'll keep it,
-        // unless the user specifically requested to switch it
-        if let Ok(current_profile) = env::var("AWS_PROFILE") {
-            match args.command {
-                ArcCommand::Switch{ aws_profile: true, .. } |
-                ArcCommand::Switch{ aws_profile: false, kube_context: false } => {
-                    // All of these cases are interpreted as the user wanting to switch AWS profile
-                },
-                _ => {
-                    // Remaining Switch case and all other commands result in keeping current profile
-                    outro(format!("Using existing AWS profile: {}", current_profile)).unwrap();
-                    let task_result = TaskResult::AwsProfile{ old: Some(current_profile), new: None };
-                    return GoalStatus::Completed(task_result);
-                }
+        if let ArcCommand::Switch{ use_current: true, .. } = args.command {
+            // User wants to use current AWS_PROFILE, if it's already set
+            if let Ok(current_profile) = env::var("AWS_PROFILE") {
+                let task_result = TaskResult::AwsProfile{ old: Some(current_profile), new: None };
+                return GoalStatus::Completed(task_result);
             }
         }
 
         // Prompt user to select an AWS profile
+        intro("AWS Profile Selector").unwrap();
         let selected_aws_profile = prompt_for_aws_profile().await;
         outro(format!("AWS profile will be set to: {}", selected_aws_profile)).unwrap();
 

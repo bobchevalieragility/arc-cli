@@ -67,6 +67,7 @@ fn aws_profile_goal() -> Goal {
             command: ArcCommand::Switch {
                 aws_profile: true,
                 kube_context: false,
+                use_current: true,
             }
         },
     )

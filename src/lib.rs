@@ -19,6 +19,9 @@ enum ArcCommand {
 
         #[arg(short, long)]
         kube_context: bool,
+
+        #[arg(short, long)]
+        use_current: bool,
     },
     AwsSecret {
         #[arg(short, long)]
@@ -42,7 +45,7 @@ impl Args {
             ArcCommand::Switch { kube_context: true, .. } => vec![
                 Goal::new(TaskType::SelectKubeContext, self.clone())
             ],
-            ArcCommand::Switch { aws_profile: false, kube_context: false } => vec![
+            ArcCommand::Switch { aws_profile: false, kube_context: false, .. } => vec![
                 Goal::new(TaskType::SelectKubeContext, self.clone()),
                 Goal::new(TaskType::SelectAwsProfile, self.clone())
             ],

@@ -13,21 +13,11 @@ pub struct SelectKubeContextTask;
 #[async_trait]
 impl Task for SelectKubeContextTask {
     async fn execute(&self, args: &Args, _state: &HashMap<Goal, TaskResult>) -> GoalStatus {
-        intro("Kube Context Selector").unwrap();
-
-        // If the KUBECONFIG environment variable is already set, then we'll keep it,
-        // unless the user specifically requested to switch it
-        if let Ok(current_config) = env::var("KUBECONFIG") {
-            match args.command {
-                ArcCommand::Switch{ kube_context: true, .. } |
-                ArcCommand::Switch{ aws_profile: false, kube_context: false } => {
-                    // All of these cases are interpreted as the user wanting to switch context
-                },
-                _ => {
-                    // All other commands result in keeping the current kube context
-                    outro(format!("Using context from existing Kube config: {}", current_config)).unwrap();
-                    return GoalStatus::Completed(TaskResult::KubeContext(None))
-                }
+        if let ArcCommand::Switch{ use_current: true, .. } = args.command {
+            // User wants to use current KUBECONFIG, if it's already set
+            let current_kubeconfig = env::var("KUBECONFIG");
+            if current_kubeconfig.is_ok() {
+                return GoalStatus::Completed(TaskResult::KubeContext(None))
             }
         }
 
@@ -36,6 +26,7 @@ impl Task for SelectKubeContextTask {
             .expect("Could not read kube config from default path.");
 
         // Prompt user to select a kubernetes context
+        intro("Kube Context Selector").unwrap();
         let selected_kube_context = prompt_for_kube_context(&config);
 
         // Modify the current context in the in-memory config
