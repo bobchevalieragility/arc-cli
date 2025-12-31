@@ -109,4 +109,7 @@ async fn execute_goals(args: &Args, mut goals: Vec<Goal>) {
             },
         }
     }
+
+    // This is the final output that the parent shell should eval
+    println!("{eval_string}");
 }
