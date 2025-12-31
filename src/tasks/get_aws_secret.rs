@@ -1,26 +1,28 @@
 use cliclack::{intro, outro, select};
 use async_trait::async_trait;
 use aws_config::BehaviorVersion;
-use std::collections::HashSet;
+use std::collections::HashMap;
 use aws_sdk_secretsmanager::Client;
 use aws_types::region::Region;
-use crate::ArcCommand;
-use crate::tasks::{Executor, Task, State, TaskResult};
+use crate::{ArcCommand, Args, Goal, GoalStatus};
+use crate::tasks::{Executor, Task, TaskResult};
 
 #[derive(Debug)]
 pub struct GetAwsSecretExecutor;
 
 #[async_trait]
 impl Executor for GetAwsSecretExecutor {
-    fn needs(&self) -> HashSet<Task> {
-        HashSet::from([Task::SelectAwsProfile])
-    }
-
-    async fn execute(&self, state: &State) -> TaskResult {
+    async fn execute(&self, args: &Args, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
         intro("AWS Secret Retriever").unwrap();
 
-        // Get the desired profile name from the result of the SelectAwsProfile task
-        let aws_profile_result = state.results.get(&Task::SelectAwsProfile)
+        // If AWS profile info is not available, we need to wait for that goal to complete
+        let profile_goal = aws_profile_goal();
+        if !state.contains_key(&profile_goal) {
+            return GoalStatus::Needs(profile_goal);
+        }
+
+        // Retrieve the desired AWS profile name from state
+        let aws_profile_result = state.get(&profile_goal)
             .expect("TaskResult for SelectAwsProfile not found");
         let profile_name = match aws_profile_result {
             TaskResult::AwsProfile { old, new } => {
@@ -38,8 +40,8 @@ impl Executor for GetAwsSecretExecutor {
             .await;
         let client = Client::new(&aws_config);
 
-        // Determine which secret to retrieve
-        let secret_name = match &state.args.command {
+        // Determine which secret to retrieve, prompting user if necessary
+        let secret_name = match &args.command {
             ArcCommand::AwsSecret{ name: Some(x) } => x.clone(),
             _ => prompt_for_aws_secret(&client).await,
         };
@@ -53,8 +55,20 @@ impl Executor for GetAwsSecretExecutor {
             .secret_string.expect("Secret may be binary or not found");
 
         outro(format!("Secret value: {}", secret_value)).unwrap();
-        TaskResult::AwsSecret(Some(secret_value))
+        GoalStatus::Completed(TaskResult::AwsSecret(Some(secret_value)))
     }
+}
+
+fn aws_profile_goal() -> Goal {
+    Goal::new(
+        Task::SelectAwsProfile,
+        Args {
+            command: ArcCommand::Switch {
+                aws_profile: true,
+                kube_context: false,
+            }
+        },
+    )
 }
 
 async fn prompt_for_aws_secret(client: &Client) -> String {

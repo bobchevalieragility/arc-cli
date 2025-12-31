@@ -3,12 +3,13 @@ pub mod select_aws_profile;
 pub mod select_kube_context;
 
 use async_trait::async_trait;
-use std::collections::{HashSet, HashMap};
-use crate::{ArcCommand, Args};
+use std::collections::HashMap;
+use crate::{Args, Goal, GoalStatus};
 use crate::tasks::get_aws_secret::GetAwsSecretExecutor;
 use crate::tasks::select_aws_profile::SelectAwsProfileExecutor;
 use crate::tasks::select_kube_context::SelectKubeContextExecutor;
 
+//TODO Should we just rename the Executor trait to Task and use dynamic dispatch?
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Task {
     GetAwsSecret,
@@ -16,43 +17,14 @@ pub enum Task {
     SelectKubeContext,
 }
 
-impl Task {
-    pub fn command_tasks(command: &ArcCommand) -> Vec<Task> {
-        let mut tasks = Vec::new();
-        match command {
-            ArcCommand::AwsSecret { .. } => {
-                tasks.push(Task::GetAwsSecret);
-            },
-            ArcCommand::Switch { aws_profile: true, .. } => {
-                tasks.push(Task::SelectAwsProfile);
-            },
-            ArcCommand::Switch { kube_context: true, .. } => {
-                tasks.push(Task::SelectKubeContext);
-            },
-            ArcCommand::Switch { aws_profile: false, kube_context: false } => {
-                tasks.push(Task::SelectAwsProfile);
-                tasks.push(Task::SelectKubeContext);
-            },
-        }
-        tasks
-    }
-}
-
 #[async_trait]
 impl Executor for Task {
-    fn needs(&self) -> HashSet<Task> {
+    // async fn execute(&self, state: &State) -> TaskResult {
+    async fn execute(&self, args: &Args, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
         match self {
-            Task::GetAwsSecret => GetAwsSecretExecutor.needs(),
-            Task::SelectAwsProfile => SelectAwsProfileExecutor.needs(),
-            Task::SelectKubeContext => SelectKubeContextExecutor.needs(),
-        }
-    }
-
-    async fn execute(&self, state: &State) -> TaskResult {
-        match self {
-            Task::GetAwsSecret => GetAwsSecretExecutor.execute(state).await,
-            Task::SelectAwsProfile => SelectAwsProfileExecutor.execute(state).await,
-            Task::SelectKubeContext => SelectKubeContextExecutor.execute(state).await,
+            Task::GetAwsSecret => GetAwsSecretExecutor.execute(args, state).await,
+            Task::SelectAwsProfile => SelectAwsProfileExecutor.execute(args, state).await,
+            Task::SelectKubeContext => SelectKubeContextExecutor.execute(args, state).await,
         }
     }
 }
@@ -77,20 +49,7 @@ impl TaskResult {
     }
 }
 
-pub struct State<'a> {
-    args: &'a Args,
-    results: &'a HashMap<Task, TaskResult>,
-}
-
-impl<'a> State<'a> {
-    pub fn new(args: &'a Args, results: &'a HashMap<Task, TaskResult>) -> State<'a> {
-        State { args, results }
-    }
-}
-
 #[async_trait]
 pub trait Executor {
-    fn needs(&self) -> HashSet<Task>;
-
-    async fn execute(&self, state: &State) -> TaskResult;
+    async fn execute(&self, args: &Args, state: &HashMap<Goal, TaskResult>) -> GoalStatus;
 }

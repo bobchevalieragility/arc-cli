@@ -1,36 +1,32 @@
 use cliclack::{intro, outro, select};
 use async_trait::async_trait;
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::{env, fs};
 use std::path::PathBuf;
 use kube::config::Kubeconfig;
-use crate::ArcCommand;
-use crate::tasks::{Executor, Task, State, TaskResult};
+use crate::{ArcCommand, Args, Goal, GoalStatus};
+use crate::tasks::{Executor, TaskResult};
 
 #[derive(Debug)]
 pub struct SelectKubeContextExecutor;
 
 #[async_trait]
 impl Executor for SelectKubeContextExecutor {
-    fn needs(&self) -> HashSet<Task> {
-        HashSet::new()
-    }
-
-    async fn execute(&self, state: &State) -> TaskResult{
+    async fn execute(&self, args: &Args, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
         intro("Kube Context Selector").unwrap();
 
         // If the KUBECONFIG environment variable is already set, then we'll keep it,
         // unless the user specifically requested to switch it
         if let Ok(current_config) = env::var("KUBECONFIG") {
-            match state.args.command {
+            match args.command {
                 ArcCommand::Switch{ kube_context: true, .. } |
                 ArcCommand::Switch{ aws_profile: false, kube_context: false } => {
                     // All of these cases are interpreted as the user wanting to switch context
                 },
                 _ => {
-                    // Remaining Switch case and all other commands result in keeping current context
+                    // All other commands result in keeping the current kube context
                     outro(format!("Using context from existing Kube config: {}", current_config)).unwrap();
-                    return TaskResult::KubeContext(None)
+                    return GoalStatus::Completed(TaskResult::KubeContext(None))
                 }
             }
         }
@@ -56,7 +52,8 @@ impl Executor for SelectKubeContextExecutor {
         fs::write(&tmp_kube_path, yaml_data).expect("Failed to write kubeconfig to temp file");
 
         outro(format!("Kube context will be set to: {}", selected_kube_context)).unwrap();
-        TaskResult::KubeContext(Some(tmp_kube_path.to_string_lossy().to_string()))
+        let path_str = Some(tmp_kube_path.to_string_lossy().to_string());
+        GoalStatus::Completed(TaskResult::KubeContext(path_str))
     }
 }
 

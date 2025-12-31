@@ -3,27 +3,23 @@ use async_trait::async_trait;
 use aws_runtime::env_config::file::EnvConfigFiles;
 use aws_config::profile;
 use aws_types::os_shim_internal::{Env, Fs};
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::env;
-use crate::ArcCommand;
-use crate::tasks::{Executor, Task, State, TaskResult};
+use crate::{ArcCommand, Args, Goal, GoalStatus};
+use crate::tasks::{Executor, TaskResult};
 
 #[derive(Debug)]
 pub struct SelectAwsProfileExecutor;
 
 #[async_trait]
 impl Executor for SelectAwsProfileExecutor {
-    fn needs(&self) -> HashSet<Task> {
-        HashSet::new()
-    }
-
-    async fn execute(&self, state: &State) -> TaskResult{
+    async fn execute(&self, args: &Args, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
         intro("AWS Profile Selector").unwrap();
 
         // If the AWS_PROFILE environment variable is already set, then we'll keep it,
         // unless the user specifically requested to switch it
         if let Ok(current_profile) = env::var("AWS_PROFILE") {
-            match state.args.command {
+            match args.command {
                 ArcCommand::Switch{ aws_profile: true, .. } |
                 ArcCommand::Switch{ aws_profile: false, kube_context: false } => {
                     // All of these cases are interpreted as the user wanting to switch AWS profile
@@ -31,7 +27,8 @@ impl Executor for SelectAwsProfileExecutor {
                 _ => {
                     // Remaining Switch case and all other commands result in keeping current profile
                     outro(format!("Using existing AWS profile: {}", current_profile)).unwrap();
-                    return TaskResult::AwsProfile{ old: Some(current_profile), new: None }
+                    let task_result = TaskResult::AwsProfile{ old: Some(current_profile), new: None };
+                    return GoalStatus::Completed(task_result);
                 }
             }
         }
@@ -40,7 +37,8 @@ impl Executor for SelectAwsProfileExecutor {
         let selected_aws_profile = prompt_for_aws_profile().await;
         outro(format!("AWS profile will be set to: {}", selected_aws_profile)).unwrap();
 
-        TaskResult::AwsProfile{ old: None, new: Some(selected_aws_profile) }
+        let task_result = TaskResult::AwsProfile{ old: None, new: Some(selected_aws_profile) };
+        GoalStatus::Completed(task_result)
     }
 }
 

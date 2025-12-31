@@ -1,18 +1,17 @@
 mod tasks;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use clap::{Parser, Subcommand};
-use topo_sort::{SortResults, TopoSort};
-use crate::tasks::{Executor, State, Task, TaskResult};
+use crate::tasks::{Executor, Task, TaskResult};
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Clone, Debug, PartialEq, Eq, Hash)]
 #[command(author, version, about = "CLI Tool for Arc Backend")]
 pub struct Args {
     #[command(subcommand)]
     command: ArcCommand,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand, Clone, Debug, PartialEq, Eq, Hash)]
 enum ArcCommand {
     Switch {
         #[arg(short, long)]
@@ -31,54 +30,83 @@ enum ArcCommand {
     // }
 }
 
+impl Args {
+    fn to_goals(&self) -> Vec<Goal> {
+        match self.command {
+            ArcCommand::AwsSecret { .. } => vec![
+                Goal::new(Task::GetAwsSecret, self.clone())
+            ],
+            ArcCommand::Switch { aws_profile: true, .. } => vec![
+                Goal::new(Task::SelectAwsProfile, self.clone())
+            ],
+            ArcCommand::Switch { kube_context: true, .. } => vec![
+                Goal::new(Task::SelectKubeContext, self.clone())
+            ],
+            ArcCommand::Switch { aws_profile: false, kube_context: false } => vec![
+                Goal::new(Task::SelectKubeContext, self.clone()),
+                Goal::new(Task::SelectAwsProfile, self.clone())
+            ],
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Hash)]
+struct Goal {
+    task: Task,
+    args: Args,
+}
+
+impl Goal {
+    fn new(task: Task, args: Args) -> Self {
+        Goal { task, args }
+    }
+}
+
 pub async fn run(args: &Args) {
-    // Recursively determine which tasks are needed for the given command
-    let needed_tasks = get_tasks_for_command(&args.command);
+    // A given Args with a single ArcCommand may map to multiple goals
+    // (e.g., Switch may require both AWS profile and Kube context selection)
+    let cmd_goals = Args::to_goals(args);
 
-    // Convert the tasks to nodes that can be topologically sorted
-    let needed_nodes: HashMap<Task, HashSet<Task>> = needed_tasks
-        .iter()
-        .map(|task| (task.clone(), task.needs()))
-        .collect();
-
-    // Topologically sort the nodes so that dependent tasks are executed after their dependencies
-    let topo_sort = TopoSort::from_map(needed_nodes);
-    match topo_sort.into_vec_nodes() {
-        SortResults::Full(sorted_tasks) => execute_tasks(args, sorted_tasks).await,
-        SortResults::Partial(_) => panic!("There's a cycle in the dependency graph!: {:?}", needed_tasks),
-    }
+    // Execute each goal, including any dependent goals
+    execute_goals(args, cmd_goals).await;
 }
 
-fn get_tasks_for_command(command: &ArcCommand) -> HashSet<Task> {
-    // Start with the tasks that directly correspond to the given command
-    let mut tasks_to_process = Task::command_tasks(command);
-
-    // Recursively add the tasks and their dependencies
-    let mut needed_tasks = HashSet::new();
-    while let Some(task) = tasks_to_process.pop() {
-        if !needed_tasks.contains(&task) {
-            needed_tasks.insert(task.clone());
-            for dep in task.needs() {
-                tasks_to_process.push(dep);
-            }
-        }
-    }
-
-    needed_tasks
+enum GoalStatus {
+    Completed(TaskResult),
+    Needs(Goal),
 }
 
-async fn execute_tasks(args: &Args, tasks: Vec<Task>) {
+async fn execute_goals(args: &Args, mut goals: Vec<Goal>) {
     let mut eval_string = String::new();
-    let mut results: HashMap<Task, TaskResult> = HashMap::new();
+    let mut state: HashMap<Goal, TaskResult> = HashMap::new();
 
-    for task in tasks {
-        let state = State::new(args, &results);
-        let result = task.execute(&state).await;
-        if let Some(s) = result.eval_string() {
-            eval_string.push_str(&s);
+    // Process goals until there are none left, peeking and processing before popping
+    while let Some(Goal { task, args }) = goals.last() {
+        // Check to see if the goal has already been completed. While unlikely,
+        // it's possible if multiple goals depend on the same sub-goal.
+        if state.contains_key(&goals.last().unwrap()) {
+            goals.pop();
+            continue;
         }
-        results.insert(task, result);
-    }
 
-    print!("{eval_string}");
+        // Attempt to complete the next goal on the stack
+        let goal_result = task.execute(args, &state).await;
+
+        // If next goal indicates that it needs the result of a dependent goal, then add the
+        // dependent goal onto the stack, leaving the original goal to be executed at a later time.
+        // Otherwise, pop the goal from the stack and store its result in the state.
+        match goal_result {
+            GoalStatus::Needs(dependent_goal) => goals.push(dependent_goal),
+            GoalStatus::Completed(result) => {
+                // Collect any text that needs to be eval'd in the parent shell
+                if let Some(s) = result.eval_string() {
+                    eval_string.push_str(&s);
+                }
+
+                // Pop the completed goal and store its result in state
+                let goal = goals.pop().unwrap();
+                state.insert(goal, result);
+            },
+        }
+    }
 }
