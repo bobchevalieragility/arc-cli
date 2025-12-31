@@ -5,13 +5,13 @@ use std::{env, fs};
 use std::path::PathBuf;
 use kube::config::Kubeconfig;
 use crate::{ArcCommand, Args, Goal, GoalStatus};
-use crate::tasks::{Executor, TaskResult};
+use crate::tasks::{Task, TaskResult};
 
 #[derive(Debug)]
-pub struct SelectKubeContextExecutor;
+pub struct SelectKubeContextTask;
 
 #[async_trait]
-impl Executor for SelectKubeContextExecutor {
+impl Task for SelectKubeContextTask {
     async fn execute(&self, args: &Args, _state: &HashMap<Goal, TaskResult>) -> GoalStatus {
         intro("Kube Context Selector").unwrap();
 

@@ -2,7 +2,7 @@ mod tasks;
 
 use std::collections::HashMap;
 use clap::{Parser, Subcommand};
-use crate::tasks::{Executor, Task, TaskResult};
+use crate::tasks::{TaskResult, TaskType};
 
 #[derive(Parser, Clone, Debug, PartialEq, Eq, Hash)]
 #[command(author, version, about = "CLI Tool for Arc Backend")]
@@ -34,17 +34,17 @@ impl Args {
     fn to_goals(&self) -> Vec<Goal> {
         match self.command {
             ArcCommand::AwsSecret { .. } => vec![
-                Goal::new(Task::GetAwsSecret, self.clone())
+                Goal::new(TaskType::GetAwsSecret, self.clone())
             ],
             ArcCommand::Switch { aws_profile: true, .. } => vec![
-                Goal::new(Task::SelectAwsProfile, self.clone())
+                Goal::new(TaskType::SelectAwsProfile, self.clone())
             ],
             ArcCommand::Switch { kube_context: true, .. } => vec![
-                Goal::new(Task::SelectKubeContext, self.clone())
+                Goal::new(TaskType::SelectKubeContext, self.clone())
             ],
             ArcCommand::Switch { aws_profile: false, kube_context: false } => vec![
-                Goal::new(Task::SelectKubeContext, self.clone()),
-                Goal::new(Task::SelectAwsProfile, self.clone())
+                Goal::new(TaskType::SelectKubeContext, self.clone()),
+                Goal::new(TaskType::SelectAwsProfile, self.clone())
             ],
         }
     }
@@ -52,13 +52,13 @@ impl Args {
 
 #[derive(PartialEq, Eq, Hash)]
 struct Goal {
-    task: Task,
+    task_type: TaskType,
     args: Args,
 }
 
 impl Goal {
-    fn new(task: Task, args: Args) -> Self {
-        Goal { task, args }
+    fn new(task_type: TaskType, args: Args) -> Self {
+        Goal { task_type, args }
     }
 }
 
@@ -81,7 +81,7 @@ async fn execute_goals(mut goals: Vec<Goal>) {
     let mut state: HashMap<Goal, TaskResult> = HashMap::new();
 
     // Process goals until there are none left, peeking and processing before popping
-    while let Some(Goal { task, args }) = goals.last() {
+    while let Some(Goal { task_type, args }) = goals.last() {
         // Check to see if the goal has already been completed. While unlikely,
         // it's possible if multiple goals depend on the same sub-goal.
         if state.contains_key(&goals.last().unwrap()) {
@@ -90,7 +90,7 @@ async fn execute_goals(mut goals: Vec<Goal>) {
         }
 
         // Attempt to complete the next goal on the stack
-        let goal_result = task.execute(args, &state).await;
+        let goal_result = task_type.to_task().execute(args, &state).await;
 
         // If next goal indicates that it needs the result of a dependent goal, then add the
         // dependent goal onto the stack, leaving the original goal to be executed at a later time.

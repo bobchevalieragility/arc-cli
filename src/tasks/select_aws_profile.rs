@@ -6,13 +6,13 @@ use aws_types::os_shim_internal::{Env, Fs};
 use std::collections::HashMap;
 use std::env;
 use crate::{ArcCommand, Args, Goal, GoalStatus};
-use crate::tasks::{Executor, TaskResult};
+use crate::tasks::{Task, TaskResult};
 
 #[derive(Debug)]
-pub struct SelectAwsProfileExecutor;
+pub struct SelectAwsProfileTask;
 
 #[async_trait]
-impl Executor for SelectAwsProfileExecutor {
+impl Task for SelectAwsProfileTask {
     async fn execute(&self, args: &Args, _state: &HashMap<Goal, TaskResult>) -> GoalStatus {
         intro("AWS Profile Selector").unwrap();
 

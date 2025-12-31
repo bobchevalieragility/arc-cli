@@ -5,21 +5,22 @@ use std::collections::HashMap;
 use aws_sdk_secretsmanager::Client;
 use aws_types::region::Region;
 use crate::{ArcCommand, Args, Goal, GoalStatus};
-use crate::tasks::{Executor, Task, TaskResult};
+use crate::tasks::{Task, TaskResult};
+use crate::tasks::TaskType::SelectAwsProfile;
 
 #[derive(Debug)]
-pub struct GetAwsSecretExecutor;
+pub struct GetAwsSecretTask;
 
 #[async_trait]
-impl Executor for GetAwsSecretExecutor {
+impl Task for GetAwsSecretTask {
     async fn execute(&self, args: &Args, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
-        intro("AWS Secret Retriever").unwrap();
-
         // If AWS profile info is not available, we need to wait for that goal to complete
         let profile_goal = aws_profile_goal();
         if !state.contains_key(&profile_goal) {
             return GoalStatus::Needs(profile_goal);
         }
+
+        intro("AWS Secret Retriever").unwrap();
 
         // Retrieve the desired AWS profile name from state
         let aws_profile_result = state.get(&profile_goal)
@@ -61,7 +62,7 @@ impl Executor for GetAwsSecretExecutor {
 
 fn aws_profile_goal() -> Goal {
     Goal::new(
-        Task::SelectAwsProfile,
+        SelectAwsProfile,
         Args {
             command: ArcCommand::Switch {
                 aws_profile: true,
