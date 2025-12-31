@@ -21,10 +21,10 @@ enum ArcCommand {
         #[arg(short, long)]
         kube_context: bool,
     },
-    AwsSecret,// {
-    //     #[arg(short, long)]
-    //     secret: String,
-    //},
+    AwsSecret {
+        #[arg(short, long)]
+        name: Option<String>,
+    },
     // Vault {
     //     #[arg(short, long)]
     //     secret: String,

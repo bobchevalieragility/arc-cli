@@ -4,6 +4,7 @@ use aws_config::BehaviorVersion;
 use std::collections::HashSet;
 use aws_sdk_secretsmanager::Client;
 use aws_types::region::Region;
+use crate::ArcCommand;
 use crate::tasks::{Executor, Task, State, TaskResult};
 
 #[derive(Debug)]
@@ -15,8 +16,8 @@ impl Executor for GetAwsSecretExecutor {
         HashSet::from([Task::SelectAwsProfile])
     }
 
-    async fn execute(&self, state: &State) -> TaskResult{
-        intro("AWS Secret Selector").unwrap();
+    async fn execute(&self, state: &State) -> TaskResult {
+        intro("AWS Secret Retriever").unwrap();
 
         // Get the desired profile name from the result of the SelectAwsProfile task
         let aws_profile_result = state.results.get(&Task::SelectAwsProfile)
@@ -29,6 +30,7 @@ impl Executor for GetAwsSecretExecutor {
             _ => panic!("Expected TaskResult::AwsProfile"),
         };
 
+        // Create AWS Secrets Manager client with the selected profile
         let aws_config = aws_config::defaults(BehaviorVersion::latest())
             .region(Region::new("us-west-2"))
             .profile_name(profile_name)
@@ -36,83 +38,56 @@ impl Executor for GetAwsSecretExecutor {
             .await;
         let client = Client::new(&aws_config);
 
-        // List secrets asynchronously
-        let paginator = client.list_secrets().into_paginator();
-        let pages: Vec<_> = paginator.send().collect::<Vec<_>>().await;
+        // Determine which secret to retrieve
+        let secret_name = match &state.args.command {
+            ArcCommand::AwsSecret{ name: Some(x) } => x.clone(),
+            _ => prompt_for_aws_secret(&client).await,
+        };
 
-        // Process the results
-        let mut all_secrets: Vec<String> = Vec::new();
-        for page_result in pages {
-            let page = page_result.unwrap();
-            let secrets: Vec<String> = page.secret_list()
-                .iter()
-                .filter_map(|e| e.name.clone())
-                .collect();
-            all_secrets.extend(secrets);
-        }
-        print!("Available secrets: {:?}\n", all_secrets);
+        // Retrieve the secret value
+        let resp = client.get_secret_value()
+            .secret_id(secret_name)
+            .send()
+            .await;
+        let secret_value = resp.expect("Failed to get secret value")
+            .secret_string.expect("Secret may be binary or not found");
 
-        // // If the AWS_PROFILE environment variable is already set, then we'll keep it,
-        // // unless the user specifically requested to switch it
-        // if let Ok(current_profile) = env::var("AWS_PROFILE") {
-        //     match state.args.command {
-        //         ArcCommand::Switch{ aws_profile: true, .. } |
-        //         ArcCommand::Switch{ aws_profile: false, kube_context: false } => {
-        //             // All of these cases are interpreted as the user wanting to switch AWS profile
-        //         },
-        //         _ => {
-        //             // Remaining Switch case and all other commands result in keeping current profile
-        //             outro(format!("Using existing AWS profile: {}", current_profile)).unwrap();
-        //             return TaskResult::AwsProfile(None)
-        //         }
-        //     }
-        // }
-        //
-        // // Prompt user to select an AWS profile
-        // let selected_aws_profile = prompt_for_aws_profile();
-        // outro(format!("AWS profile will be set to: {}", selected_aws_profile)).unwrap();
-        //
-        // TaskResult::AwsProfile(Some(selected_aws_profile))
-
-        //TODO fix me
-        TaskResult::AwsSecret(None)
+        outro(format!("Secret value: {}", secret_value)).unwrap();
+        TaskResult::AwsSecret(Some(secret_value))
     }
 }
 
-// fn prompt_for_aws_secret() -> String {
-//     let mut menu = select("Which AWS profile would you like to use?");
-//
-//     let available_profiles = get_available_aws_profiles();
-//     for profile in &available_profiles {
-//         menu = menu.item(profile, profile, "");
-//     }
-//
-//     menu.interact().unwrap().to_string()
-// }
+async fn prompt_for_aws_secret(client: &Client) -> String {
+    let available_secrets = get_available_secrets(client).await;
 
-// fn get_available_aws_profiles() -> Vec<String> {
-//     // Use real filesystem and environment access
-//     let fs = Fs::real();
-//     let env = Env::real();
-//
-//     // Load default profile files (~/.aws/config and ~/.aws/credentials)
-//     let config_files = EnvConfigFiles::default();
-//
-//     // Block on the async call to load env config sections
-//     let config_sections = profile::load(&fs, &env, &config_files, None)
-//         .block_on()
-//         .unwrap();
-//
-//     // Extract profile names
-//     let mut profile_names: Vec<String> = config_sections
-//         .profiles()
-//         .map(|s| s.to_string())
-//         .collect();
-//
-//     if profile_names.is_empty() {
-//         panic!("No AWS profiles found");
-//     }
-//
-//     profile_names.sort();
-//     profile_names
-// }
+    let mut menu = select("Which secret would you like to retrieve?");
+    for secret in &available_secrets {
+        menu = menu.item(secret, secret, "");
+    }
+
+    menu.interact().unwrap().to_string()
+}
+
+async fn get_available_secrets(client: &Client) -> Vec<String> {
+    // List secrets asynchronously
+    let paginator = client.list_secrets().into_paginator();
+    let pages: Vec<_> = paginator.send().collect::<Vec<_>>().await;
+
+    // Process the results
+    let mut all_secrets: Vec<String> = Vec::new();
+    for page_result in pages {
+        let page = page_result.unwrap();
+        let secrets: Vec<String> = page.secret_list()
+            .iter()
+            .filter_map(|e| e.name.clone())
+            .collect();
+        all_secrets.extend(secrets);
+    }
+
+    if all_secrets.is_empty() {
+        panic!("No AWS secrets found");
+    }
+
+    all_secrets.sort();
+    all_secrets
+}

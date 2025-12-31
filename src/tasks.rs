@@ -20,7 +20,7 @@ impl Task {
     pub fn command_tasks(command: &ArcCommand) -> Vec<Task> {
         let mut tasks = Vec::new();
         match command {
-            ArcCommand::AwsSecret => {
+            ArcCommand::AwsSecret { .. } => {
                 tasks.push(Task::GetAwsSecret);
             },
             ArcCommand::Switch { aws_profile: true, .. } => {
