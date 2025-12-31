@@ -13,7 +13,7 @@ pub struct SelectAwsProfileExecutor;
 
 #[async_trait]
 impl Executor for SelectAwsProfileExecutor {
-    async fn execute(&self, args: &Args, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
+    async fn execute(&self, args: &Args, _state: &HashMap<Goal, TaskResult>) -> GoalStatus {
         intro("AWS Profile Selector").unwrap();
 
         // If the AWS_PROFILE environment variable is already set, then we'll keep it,

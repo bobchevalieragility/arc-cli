@@ -65,10 +65,10 @@ impl Goal {
 pub async fn run(args: &Args) {
     // A given Args with a single ArcCommand may map to multiple goals
     // (e.g., Switch may require both AWS profile and Kube context selection)
-    let cmd_goals = Args::to_goals(args);
+    let goals = Args::to_goals(args);
 
     // Execute each goal, including any dependent goals
-    execute_goals(args, cmd_goals).await;
+    execute_goals(goals).await;
 }
 
 enum GoalStatus {
@@ -76,7 +76,7 @@ enum GoalStatus {
     Needs(Goal),
 }
 
-async fn execute_goals(args: &Args, mut goals: Vec<Goal>) {
+async fn execute_goals(mut goals: Vec<Goal>) {
     let mut eval_string = String::new();
     let mut state: HashMap<Goal, TaskResult> = HashMap::new();
 

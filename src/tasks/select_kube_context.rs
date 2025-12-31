@@ -12,7 +12,7 @@ pub struct SelectKubeContextExecutor;
 
 #[async_trait]
 impl Executor for SelectKubeContextExecutor {
-    async fn execute(&self, args: &Args, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
+    async fn execute(&self, args: &Args, _state: &HashMap<Goal, TaskResult>) -> GoalStatus {
         intro("Kube Context Selector").unwrap();
 
         // If the KUBECONFIG environment variable is already set, then we'll keep it,
