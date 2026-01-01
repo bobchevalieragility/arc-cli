@@ -1,5 +1,8 @@
+mod aws_accounts;
+mod rds;
 mod tasks;
 
+use std::convert::From;
 use std::collections::HashMap;
 use clap::{Parser, Subcommand};
 use crate::tasks::{TaskResult, TaskType};
@@ -27,6 +30,7 @@ enum ArcCommand {
         #[arg(short, long)]
         name: Option<String>,
     },
+    Pgcli,
     // Vault {
     //     #[arg(short, long)]
     //     secret: String,
@@ -37,17 +41,20 @@ impl Args {
     fn to_goals(&self) -> Vec<Goal> {
         match self.command {
             ArcCommand::AwsSecret { .. } => vec![
-                Goal::new(TaskType::GetAwsSecret, self.clone())
+                Goal::new(TaskType::GetAwsSecret, Some(self.clone()))
+            ],
+            ArcCommand::Pgcli => vec![
+                Goal::new(TaskType::RunPgcli, Some(self.clone()))
             ],
             ArcCommand::Switch { aws_profile: true, .. } => vec![
-                Goal::new(TaskType::SelectAwsProfile, self.clone())
+                Goal::new(TaskType::SelectAwsProfile, Some(self.clone()))
             ],
             ArcCommand::Switch { kube_context: true, .. } => vec![
-                Goal::new(TaskType::SelectKubeContext, self.clone())
+                Goal::new(TaskType::SelectKubeContext, Some(self.clone()))
             ],
             ArcCommand::Switch { aws_profile: false, kube_context: false, .. } => vec![
-                Goal::new(TaskType::SelectKubeContext, self.clone()),
-                Goal::new(TaskType::SelectAwsProfile, self.clone())
+                Goal::new(TaskType::SelectKubeContext, Some(self.clone())),
+                Goal::new(TaskType::SelectAwsProfile, Some(self.clone()))
             ],
         }
     }
@@ -56,12 +63,35 @@ impl Args {
 #[derive(PartialEq, Eq, Hash)]
 struct Goal {
     task_type: TaskType,
-    args: Args,
+    args: Option<Args>,
 }
 
 impl Goal {
-    fn new(task_type: TaskType, args: Args) -> Self {
+    fn new(task_type: TaskType, args: Option<Args>) -> Self {
         Goal { task_type, args }
+    }
+}
+
+impl From<TaskType> for Goal {
+    fn from(task_type: TaskType) -> Self {
+        match task_type {
+            TaskType::SelectAwsProfile => Goal::new(TaskType::SelectAwsProfile, Some(Args {
+                command: ArcCommand::Switch {
+                    aws_profile: true,
+                    kube_context: false,
+                    use_current: true,
+                }
+            })),
+            TaskType::SelectKubeContext => Goal::new(TaskType::SelectKubeContext, Some(Args {
+                command: ArcCommand::Switch {
+                    aws_profile: false,
+                    kube_context: true,
+                    use_current: true,
+                }
+            })),
+            TaskType::SelectRdsInstance => Goal::new(TaskType::SelectRdsInstance, None),
+            _ => panic!("TaskType=>Goal conversion is missing."),
+        }
     }
 }
 

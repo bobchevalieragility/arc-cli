@@ -12,8 +12,8 @@ pub struct SelectKubeContextTask;
 
 #[async_trait]
 impl Task for SelectKubeContextTask {
-    async fn execute(&self, args: &Args, _state: &HashMap<Goal, TaskResult>) -> GoalStatus {
-        if let ArcCommand::Switch{ use_current: true, .. } = args.command {
+    async fn execute(&self, args: &Option<Args>, _state: &HashMap<Goal, TaskResult>) -> GoalStatus {
+        if let ArcCommand::Switch{ use_current: true, .. } = &args.as_ref().expect("Args is None").command {
             // User wants to use current KUBECONFIG, if it's already set
             let current_kubeconfig = env::var("KUBECONFIG");
             if current_kubeconfig.is_ok() {
