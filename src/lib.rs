@@ -1,4 +1,4 @@
-mod aws_accounts;
+mod aws_account;
 mod rds;
 mod tasks;
 

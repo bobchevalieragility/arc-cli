@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::env;
 use aws_runtime::env_config::section::EnvConfigSections;
 use crate::{ArcCommand, Args, Goal, GoalStatus};
+use crate::aws_account::AwsAccount;
 use crate::tasks::{Task, TaskResult};
 
 #[derive(Debug)]
@@ -18,8 +19,8 @@ impl Task for SelectAwsProfileTask {
         if let ArcCommand::Switch{ use_current: true, .. } = &args.as_ref().expect("Args is None").command {
             // User wants to use current AWS_PROFILE, if it's already set
             if let Ok(current_profile) = env::var("AWS_PROFILE") {
-                let account_id = get_account(&current_profile).await;
-                let profile_info = AwsProfileInfo::new(current_profile, account_id);
+                let account = get_aws_account(&current_profile).await;
+                let profile_info = AwsProfileInfo::new(current_profile, account);
                 let task_result = TaskResult::AwsProfile{ old: Some(profile_info), new: None };
                 return GoalStatus::Completed(task_result);
             }
@@ -28,7 +29,7 @@ impl Task for SelectAwsProfileTask {
         // Prompt user to select an AWS profile
         intro("AWS Profile Selector").unwrap();
         let selected_aws_profile = prompt_for_aws_profile().await;
-        let account_id = get_account(&selected_aws_profile).await;
+        let account_id = get_aws_account(&selected_aws_profile).await;
         outro(format!("AWS profile will be set to: {}", selected_aws_profile)).unwrap();
 
         let profile_info = AwsProfileInfo::new(selected_aws_profile, account_id);
@@ -39,12 +40,12 @@ impl Task for SelectAwsProfileTask {
 
 pub struct AwsProfileInfo {
     pub name: String,
-    pub account_id: String,
+    pub account: AwsAccount,
 }
 
 impl AwsProfileInfo {
-    pub fn new(name: String, account_id: String) -> AwsProfileInfo {
-        AwsProfileInfo { name, account_id }
+    pub fn new(name: String, account: AwsAccount) -> AwsProfileInfo {
+        AwsProfileInfo { name, account }
     }
 }
 
@@ -77,13 +78,16 @@ async fn get_available_aws_profiles() -> Vec<String> {
     profile_names
 }
 
-async fn get_account(profile_name: &str) -> String {
+async fn get_aws_account(profile_name: &str) -> AwsAccount {
     let config_sections = gert_env_configs().await;
 
+    // Extract SSO account ID
     let profile = config_sections.get_profile(profile_name).unwrap();
-    profile.get("sso_account_id")
+    let account_id = profile.get("sso_account_id")
         .expect("AWS config is missing 'sso_account_id' property")
-        .to_string()
+        .to_string();
+
+    AwsAccount::from(account_id.as_str())
 }
 
 async fn gert_env_configs() -> EnvConfigSections {

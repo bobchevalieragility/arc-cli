@@ -10,7 +10,7 @@ pub struct RunPgcliTask;
 
 #[async_trait]
 impl Task for RunPgcliTask {
-    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
+    async fn execute(&self, _args: &Option<Args>, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
         // If an RDS instance has not yet been selected, we need to wait for that goal to complete
         let rds_selection_goal = Goal::from(TaskType::SelectRdsInstance);
         if !state.contains_key(&rds_selection_goal) {

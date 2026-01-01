@@ -51,7 +51,8 @@ impl Task for GetAwsSecretTask {
             .secret_id(secret_name)
             .send()
             .await;
-        let secret_value = resp.expect("Failed to get secret value")
+        //TODO: handle potential errors more gracefully
+        let secret_value = resp.expect("Failed to get secret value. Try running 'aws sso login'.")
             .secret_string.expect("Secret may be binary or not found");
 
         outro(format!("Secret value: {}", secret_value)).unwrap();
