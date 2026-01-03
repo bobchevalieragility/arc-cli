@@ -4,14 +4,14 @@ use std::collections::HashMap;
 use crate::{Args, Goal, GoalStatus};
 use crate::aws::aws_account::AwsAccount;
 use crate::aws::rds::RdsInstance;
-use crate::tasks::{Task, TaskResult, TaskType};
+use crate::tasks::{color_output, Task, TaskResult, TaskType};
 
 #[derive(Debug)]
 pub struct SelectRdsInstanceTask;
 
 #[async_trait]
 impl Task for SelectRdsInstanceTask {
-    async fn execute(&self, _args: &Option<Args>, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
+    async fn execute(&self, _args: &Option<Args>, state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
         // If AWS profile info is not available, we need to wait for that goal to complete
         let profile_goal = Goal::from(TaskType::SelectAwsProfile);
         if !state.contains_key(&profile_goal) {
@@ -34,7 +34,7 @@ impl Task for SelectRdsInstanceTask {
         // Prompt the user to select an RDS instance
         let rds_instance = prompt_for_rds_instance(&profile_info.account).await;
 
-        outro(format!("RDS instance selected: {}", rds_instance.name())).unwrap();
+        outro(format!("RDS instance: {}", color_output(rds_instance.name(), is_terminal_goal))).unwrap();
         GoalStatus::Completed(TaskResult::RdsInstance(Some(rds_instance)))
     }
 }

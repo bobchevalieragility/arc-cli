@@ -8,14 +8,14 @@ use std::env;
 use aws_runtime::env_config::section::EnvConfigSections;
 use crate::{ArcCommand, Args, Goal, GoalStatus};
 use crate::aws::aws_account::AwsAccount;
-use crate::tasks::{Task, TaskResult};
+use crate::tasks::{color_output, Task, TaskResult};
 
 #[derive(Debug)]
 pub struct SelectAwsProfileTask;
 
 #[async_trait]
 impl Task for SelectAwsProfileTask {
-    async fn execute(&self, args: &Option<Args>, _state: &HashMap<Goal, TaskResult>) -> GoalStatus {
+    async fn execute(&self, args: &Option<Args>, _state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
         if let ArcCommand::Switch{ use_current: true, .. } = &args.as_ref().expect("Args is None").command {
             // User wants to use current AWS_PROFILE, if it's already set
             if let Ok(current_profile) = env::var("AWS_PROFILE") {
@@ -30,7 +30,7 @@ impl Task for SelectAwsProfileTask {
         intro("AWS Profile Selector").unwrap();
         let selected_aws_profile = prompt_for_aws_profile().await;
         let account_id = get_aws_account(&selected_aws_profile).await;
-        outro(format!("AWS profile will be set to: {}", selected_aws_profile)).unwrap();
+        outro(format!("AWS profile: {}", color_output(&selected_aws_profile, is_terminal_goal))).unwrap();
 
         let profile_info = AwsProfileInfo::new(selected_aws_profile, account_id);
         let task_result = TaskResult::AwsProfile{ old: None, new: Some(profile_info) };

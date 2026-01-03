@@ -1,18 +1,19 @@
-use cliclack::{intro, outro, select};
 use async_trait::async_trait;
 use aws_config::BehaviorVersion;
-use std::collections::HashMap;
 use aws_sdk_secretsmanager::Client;
 use aws_types::region::Region;
+use cliclack::{intro, outro, select};
+use std::collections::HashMap;
+
 use crate::{ArcCommand, Args, Goal, GoalStatus};
-use crate::tasks::{Task, TaskResult, TaskType};
+use crate::tasks::{color_output, Task, TaskResult, TaskType};
 
 #[derive(Debug)]
 pub struct GetAwsSecretTask;
 
 #[async_trait]
 impl Task for GetAwsSecretTask {
-    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
+    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
         // If AWS profile info is not available, we need to wait for that goal to complete
         let profile_goal = Goal::from(TaskType::SelectAwsProfile);
         if !state.contains_key(&profile_goal) {
@@ -55,7 +56,7 @@ impl Task for GetAwsSecretTask {
         let secret_value = resp.expect("Failed to get secret value. Try running 'aws sso login'.")
             .secret_string.expect("Secret may be binary or not found");
 
-        outro(format!("Secret value: {}", secret_value)).unwrap();
+        outro(format!("Secret: {}", color_output(&secret_value, is_terminal_goal))).unwrap();
         GoalStatus::Completed(TaskResult::AwsSecret(Some(secret_value)))
     }
 }

@@ -66,7 +66,7 @@ impl Args {
     }
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 struct Goal {
     task_type: TaskType,
     args: Option<Args>,
@@ -105,10 +105,10 @@ impl From<TaskType> for Goal {
 pub async fn run(args: &Args) {
     // A given Args with a single ArcCommand may map to multiple goals
     // (e.g., Switch may require both AWS profile and Kube context selection)
-    let goals = Args::to_goals(args);
+    let terminal_goals = Args::to_goals(args);
 
     // Execute each goal, including any dependent goals
-    execute_goals(goals).await;
+    execute_goals(terminal_goals).await;
 }
 
 enum GoalStatus {
@@ -116,7 +116,8 @@ enum GoalStatus {
     Needs(Goal),
 }
 
-async fn execute_goals(mut goals: Vec<Goal>) {
+async fn execute_goals(terminal_goals: Vec<Goal>) {
+    let mut goals = terminal_goals.clone();
     let mut eval_string = String::new();
     let mut state: HashMap<Goal, TaskResult> = HashMap::new();
 
@@ -129,8 +130,11 @@ async fn execute_goals(mut goals: Vec<Goal>) {
             continue;
         }
 
+        // Determine if this is one of the original, user-requested goals
+        let is_terminal_goal = terminal_goals.contains(goals.last().as_ref().unwrap());
+
         // Attempt to complete the next goal on the stack
-        let goal_result = task_type.to_task().execute(args, &state).await;
+        let goal_result = task_type.to_task().execute(args, &state, is_terminal_goal).await;
 
         // If next goal indicates that it needs the result of a dependent goal, then add the
         // dependent goal onto the stack, leaving the original goal to be executed at a later time.

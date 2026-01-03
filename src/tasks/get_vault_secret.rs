@@ -1,10 +1,11 @@
-use cliclack::{intro, outro, select};
 use async_trait::async_trait;
+use cliclack::{intro, outro, select};
 use std::collections::HashMap;
 use vaultrs::client::VaultClient;
-use crate::{ArcCommand, Args, Goal, GoalStatus};
-use crate::tasks::{Task, TaskResult, TaskType};
 use vaultrs::kv2;
+
+use crate::{ArcCommand, Args, Goal, GoalStatus};
+use crate::tasks::{color_output, Task, TaskResult, TaskType};
 use crate::aws::vault;
 
 #[derive(Debug)]
@@ -12,7 +13,7 @@ pub struct GetVaultSecretTask;
 
 #[async_trait]
 impl Task for GetVaultSecretTask {
-    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
+    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
         // If AWS profile info is not available, we need to wait for that goal to complete
         let profile_goal = Goal::from(TaskType::SelectAwsProfile);
         if !state.contains_key(&profile_goal) {
@@ -80,7 +81,7 @@ impl Task for GetVaultSecretTask {
                         panic!("Field '{}' not found in secret at path '{}'", f, secret_path);
                     }
                 };
-                outro(format!("{}: {}", f, secret_field)).unwrap();
+                outro(format!("{}: {}", f, color_output(&secret_field, is_terminal_goal))).unwrap();
                 secret_field
             },
             _ => {
@@ -89,7 +90,7 @@ impl Task for GetVaultSecretTask {
                     .map(|(k, v)| format!("{}: {}", k, v))
                     .collect::<Vec<String>>()
                     .join("\n");
-                outro(format!("Secret:\n{}", full_secret)).unwrap();
+                outro(format!("Secret:\n{}", color_output(&full_secret, is_terminal_goal))).unwrap();
                 full_secret
             },
         };
@@ -103,7 +104,6 @@ async fn prompt_for_secret_path(client: &VaultClient) -> Result<String, Box<dyn 
 
     while current_path.is_empty() || current_path.ends_with('/') {
         let items = kv2::list(client, "kv-v2", &current_path).await?;
-        println!("items: {:?}", items);
 
         // Collect all available sub-paths
         let available_paths: Vec<String> = items

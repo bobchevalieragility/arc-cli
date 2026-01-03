@@ -8,6 +8,7 @@ pub mod select_rds_instance;
 
 use async_trait::async_trait;
 use std::collections::HashMap;
+use console::{style, StyledObject};
 use crate::{Args, Goal, GoalStatus};
 use crate::aws::rds::RdsInstance;
 use crate::tasks::get_aws_secret::GetAwsSecretTask;
@@ -20,7 +21,7 @@ use crate::tasks::select_rds_instance::SelectRdsInstanceTask;
 
 #[async_trait]
 pub trait Task: Send + Sync {
-    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>) -> GoalStatus;
+    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -73,5 +74,13 @@ impl TaskResult {
             },
             _ => None,
         }
+    }
+}
+
+pub fn color_output(output: &str, is_terminal_goal: bool) -> StyledObject<&str> {
+    if is_terminal_goal {
+        style(output).green()
+    } else {
+        style(output).blue()
     }
 }

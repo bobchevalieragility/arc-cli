@@ -5,14 +5,14 @@ use std::{env, fs};
 use std::path::PathBuf;
 use kube::config::Kubeconfig;
 use crate::{ArcCommand, Args, Goal, GoalStatus};
-use crate::tasks::{Task, TaskResult};
+use crate::tasks::{color_output, Task, TaskResult};
 
 #[derive(Debug)]
 pub struct SelectKubeContextTask;
 
 #[async_trait]
 impl Task for SelectKubeContextTask {
-    async fn execute(&self, args: &Option<Args>, _state: &HashMap<Goal, TaskResult>) -> GoalStatus {
+    async fn execute(&self, args: &Option<Args>, _state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
         if let ArcCommand::Switch{ use_current: true, .. } = &args.as_ref().expect("Args is None").command {
             // User wants to use current KUBECONFIG, if it's already set
             let current_kubeconfig = env::var("KUBECONFIG");
@@ -42,7 +42,7 @@ impl Task for SelectKubeContextTask {
             .expect("Failed to serialize kubeconfig to YAML");
         fs::write(&tmp_kube_path, yaml_data).expect("Failed to write kubeconfig to temp file");
 
-        outro(format!("Kube context will be set to: {}", selected_kube_context)).unwrap();
+        outro(format!("Kube context: {}", color_output(&selected_kube_context, is_terminal_goal))).unwrap();
         let path_str = Some(tmp_kube_path.to_string_lossy().to_string());
         GoalStatus::Completed(TaskResult::KubeContext(path_str))
     }

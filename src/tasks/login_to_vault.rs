@@ -9,14 +9,14 @@ use vaultrs::token;
 use crate::{Args, Goal, GoalStatus};
 use crate::aws::vault;
 use crate::aws::vault::VaultInstance;
-use crate::tasks::{Task, TaskResult, TaskType};
+use crate::tasks::{color_output, Task, TaskResult, TaskType};
 
 #[derive(Debug)]
 pub struct LoginToVaultTask;
 
 #[async_trait]
 impl Task for LoginToVaultTask {
-    async fn execute(&self, _args: &Option<Args>, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
+    async fn execute(&self, _args: &Option<Args>, state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
         // If AWS profile info is not available, we need to wait for that goal to complete
         let profile_goal = Goal::from(TaskType::SelectAwsProfile);
         if !state.contains_key(&profile_goal) {
@@ -50,7 +50,7 @@ impl Task for LoginToVaultTask {
             if let Ok(token_info) = token::lookup_self(&client).await {
                 if token_info.ttl > 0 {
                     // Existing token is still valid, so let's use it
-                    outro("Using existing Vault token").unwrap();
+                    outro(color_output("Using existing Vault token", is_terminal_goal)).unwrap();
                     return GoalStatus::Completed(TaskResult::VaultToken(token));
                 }
             }
@@ -60,7 +60,7 @@ impl Task for LoginToVaultTask {
         let token = vault_login(&vault_instance).await.expect("Vault login failed");
         save_token_file(&token).expect("Failed to save token file");
 
-        outro("Successfully logged into Vault").unwrap();
+        outro(color_output("Successfully logged into Vault", is_terminal_goal)).unwrap();
         GoalStatus::Completed(TaskResult::VaultToken(token))
     }
 }

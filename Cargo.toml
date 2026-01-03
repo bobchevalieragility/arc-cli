@@ -12,6 +12,7 @@ aws-types = "1.3.11"
 chrono = "0.4"
 clap = { version = "4.5.53", features = ["derive"] }
 cliclack = "0.3.7"
+console = "0.16.2"
 home = "0.5.12"
 # kube and k8s-openapi versions need to be compatible.
 # Also use appropriate k8s-openapi feature for your k8s cluster version.
