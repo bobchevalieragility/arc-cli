@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use cliclack::{intro, outro, select};
+use cliclack::{intro, outro_note, select};
 use std::collections::HashMap;
 use vaultrs::client::VaultClient;
 use vaultrs::kv2;
@@ -81,7 +81,7 @@ impl Task for GetVaultSecretTask {
                         panic!("Field '{}' not found in secret at path '{}'", f, secret_path);
                     }
                 };
-                outro(format!("{}: {}", f, color_output(&secret_field, is_terminal_goal))).unwrap();
+                outro_note(color_output(f, is_terminal_goal), &secret_field).unwrap();
                 secret_field
             },
             _ => {
@@ -90,7 +90,7 @@ impl Task for GetVaultSecretTask {
                     .map(|(k, v)| format!("{}: {}", k, v))
                     .collect::<Vec<String>>()
                     .join("\n");
-                outro(format!("Secret:\n{}", color_output(&full_secret, is_terminal_goal))).unwrap();
+                outro_note(color_output("Secret", is_terminal_goal), &full_secret).unwrap();
                 full_secret
             },
         };
