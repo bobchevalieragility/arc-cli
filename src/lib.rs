@@ -14,6 +14,7 @@ pub struct Args {
 }
 
 #[derive(Subcommand, Clone, Debug, PartialEq, Eq, Hash)]
+//TODO add descriptions to all of these commands and args
 enum ArcCommand {
     Switch {
         #[arg(short, long)]
@@ -30,11 +31,13 @@ enum ArcCommand {
         name: Option<String>,
     },
     Pgcli,
-    Vault,
-    // Vault {
-    //     #[arg(short, long)]
-    //     secret: String,
-    // }
+    Vault {
+        #[arg(short, long)]
+        path: Option<String>,
+
+        #[arg(short, long)]
+        field: Option<String>,
+    }
 }
 
 impl Args {
@@ -56,7 +59,7 @@ impl Args {
                 Goal::new(TaskType::SelectKubeContext, Some(self.clone())),
                 Goal::new(TaskType::SelectAwsProfile, Some(self.clone()))
             ],
-            ArcCommand::Vault => vec![
+            ArcCommand::Vault { .. } => vec![
                 Goal::new(TaskType::GetVaultSecret, Some(self.clone()))
             ],
         }

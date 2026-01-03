@@ -2,7 +2,7 @@ use cliclack::{intro, outro, select};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use vaultrs::client::VaultClient;
-use crate::{Args, Goal, GoalStatus};
+use crate::{ArcCommand, Args, Goal, GoalStatus};
 use crate::tasks::{Task, TaskResult, TaskType};
 use vaultrs::kv2;
 use crate::aws::vault;
@@ -58,22 +58,43 @@ impl Task for GetVaultSecretTask {
             Some(token.to_string())
         );
 
+        let args = args.as_ref().expect("Args is None");
+
         // Determine which secret to retrieve, prompting user if necessary
-        let secret_path = prompt_for_secret_path(&client).await
-            .expect("Failed to get secret path");
+        let secret_path = match &args.command {
+            ArcCommand::Vault{ path: Some(p), .. } => p.clone(),
+            _ => prompt_for_secret_path(&client).await.expect("Failed to select secret path"),
+        };
 
         // Retrieve the secret key-value pairs from Vault
-        let secrets: HashMap<String, serde_json::Value> = kv2::read(&client, "kv-v2", &secret_path)
+        let secrets: HashMap<String, String> = kv2::read(&client, "kv-v2", &secret_path)
             .await.expect("Unable to read Vault secret");
 
-        // Concatenate k: v pairs into a single, newline-delimited string
-        let secrets_str = secrets.iter()
-            .map(|(k, v)| format!("{}: {}", k, v))
-            .collect::<Vec<String>>()
-            .join("\n");
+        // Optionally extract a specific field from the secret and format for display
+        let result = match &args.command {
+            ArcCommand::Vault{ field: Some(f), .. } => {
+                // Extract specific field
+                let secret_field = match secrets.get(f) {
+                    Some(value) => value.to_string(),
+                    None => {
+                        panic!("Field '{}' not found in secret at path '{}'", f, secret_path);
+                    }
+                };
+                outro(format!("{}: {}", f, secret_field)).unwrap();
+                secret_field
+            },
+            _ => {
+                // Concatenate k: v pairs into a single, newline-delimited string
+                let full_secret = secrets.iter()
+                    .map(|(k, v)| format!("{}: {}", k, v))
+                    .collect::<Vec<String>>()
+                    .join("\n");
+                outro(format!("Secret:\n{}", full_secret)).unwrap();
+                full_secret
+            },
+        };
 
-        outro(format!("Secrets:\n{}", secrets_str)).unwrap();
-        GoalStatus::Completed(TaskResult::VaultSecret(secrets_str))
+        GoalStatus::Completed(TaskResult::VaultSecret(result))
     }
 }
 
