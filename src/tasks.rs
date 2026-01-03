@@ -1,4 +1,6 @@
 pub mod get_aws_secret;
+pub mod get_vault_secret;
+pub mod login_to_vault;
 pub mod run_pgcli;
 pub mod select_aws_profile;
 pub mod select_kube_context;
@@ -7,8 +9,10 @@ pub mod select_rds_instance;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use crate::{Args, Goal, GoalStatus};
-use crate::rds::RdsInstance;
+use crate::aws::rds::RdsInstance;
 use crate::tasks::get_aws_secret::GetAwsSecretTask;
+use crate::tasks::get_vault_secret::GetVaultSecretTask;
+use crate::tasks::login_to_vault::LoginToVaultTask;
 use crate::tasks::run_pgcli::RunPgcliTask;
 use crate::tasks::select_aws_profile::{AwsProfileInfo, SelectAwsProfileTask};
 use crate::tasks::select_kube_context::SelectKubeContextTask;
@@ -22,6 +26,8 @@ pub trait Task: Send + Sync {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TaskType {
     GetAwsSecret,
+    GetVaultSecret,
+    LoginToVault,
     RunPgcli,
     SelectAwsProfile,
     SelectKubeContext,
@@ -32,6 +38,8 @@ impl TaskType {
     pub fn to_task(&self) -> Box<dyn Task> {
         match self {
             TaskType::GetAwsSecret => Box::new(GetAwsSecretTask),
+            TaskType::GetVaultSecret => Box::new(GetVaultSecretTask),
+            TaskType::LoginToVault => Box::new(LoginToVaultTask),
             TaskType::RunPgcli => Box::new(RunPgcliTask),
             TaskType::SelectAwsProfile => Box::new(SelectAwsProfileTask),
             TaskType::SelectKubeContext => Box::new(SelectKubeContextTask),
@@ -43,6 +51,8 @@ impl TaskType {
 //TODO Should some of these result variants NOT be Option types?
 pub enum TaskResult {
     AwsSecret(Option<String>),
+    VaultSecret(String),
+    VaultToken(String),
     AwsProfile{ old: Option<AwsProfileInfo>, new: Option<AwsProfileInfo> },
     KubeContext(Option<String>),
     PgcliCommand(String),

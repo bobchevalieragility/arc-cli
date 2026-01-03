@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::env;
 use aws_runtime::env_config::section::EnvConfigSections;
 use crate::{ArcCommand, Args, Goal, GoalStatus};
-use crate::aws_account::AwsAccount;
+use crate::aws::aws_account::AwsAccount;
 use crate::tasks::{Task, TaskResult};
 
 #[derive(Debug)]

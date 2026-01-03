@@ -1,5 +1,4 @@
-mod aws_account;
-mod rds;
+mod aws;
 mod tasks;
 
 use std::convert::From;
@@ -31,6 +30,7 @@ enum ArcCommand {
         name: Option<String>,
     },
     Pgcli,
+    Vault,
     // Vault {
     //     #[arg(short, long)]
     //     secret: String,
@@ -56,6 +56,9 @@ impl Args {
                 Goal::new(TaskType::SelectKubeContext, Some(self.clone())),
                 Goal::new(TaskType::SelectAwsProfile, Some(self.clone()))
             ],
+            ArcCommand::Vault => vec![
+                Goal::new(TaskType::GetVaultSecret, Some(self.clone()))
+            ],
         }
     }
 }
@@ -75,6 +78,7 @@ impl Goal {
 impl From<TaskType> for Goal {
     fn from(task_type: TaskType) -> Self {
         match task_type {
+            TaskType::LoginToVault => Goal::new(TaskType::LoginToVault, None),
             TaskType::SelectAwsProfile => Goal::new(TaskType::SelectAwsProfile, Some(Args {
                 command: ArcCommand::Switch {
                     aws_profile: true,

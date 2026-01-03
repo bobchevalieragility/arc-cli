@@ -2,8 +2,8 @@ use cliclack::{intro, outro, select};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use crate::{Args, Goal, GoalStatus};
-use crate::aws_account::AwsAccount;
-use crate::rds::RdsInstance;
+use crate::aws::aws_account::AwsAccount;
+use crate::aws::rds::RdsInstance;
 use crate::tasks::{Task, TaskResult, TaskType};
 
 #[derive(Debug)]
@@ -40,21 +40,13 @@ impl Task for SelectRdsInstanceTask {
 }
 
 async fn prompt_for_rds_instance(account: &AwsAccount) -> RdsInstance {
-    let available_rds_instances = get_available_rds_names(account);
+    let available_rds_instances = account.rds_instances();
 
     let mut menu = select("Which RDS instance would you like to connect to?");
-    for secret in &available_rds_instances {
-        menu = menu.item(secret, secret, "");
+    for rds in &available_rds_instances {
+        menu = menu.item(rds.name(), rds.name(), "");
     }
 
     let rds_name = menu.interact().unwrap().to_string();
     RdsInstance::from(rds_name.as_str())
-}
-
-fn get_available_rds_names(account: &AwsAccount) -> Vec<&'static str> {
-    match account {
-        AwsAccount::Dev => vec![RdsInstance::WorkcellDev.name(), RdsInstance::EventLogDev.name()],
-        AwsAccount::Stage => vec![RdsInstance::WorkcellStage.name(), RdsInstance::EventLogStage.name()],
-        AwsAccount::Prod => vec![RdsInstance::WorkcellProd.name(), RdsInstance::EventLogProd.name()],
-    }
 }
