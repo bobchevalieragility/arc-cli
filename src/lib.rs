@@ -16,6 +16,12 @@ pub struct Args {
 #[derive(Subcommand, Clone, Debug, PartialEq, Eq, Hash)]
 //TODO add descriptions to all of these commands and args
 enum ArcCommand {
+    AwsSecret {
+        #[arg(short, long)]
+        name: Option<String>,
+    },
+    Influx,
+    Pgcli,
     Switch {
         #[arg(short, long)]
         aws_profile: bool,
@@ -26,11 +32,6 @@ enum ArcCommand {
         #[arg(short, long)]
         use_current: bool,
     },
-    AwsSecret {
-        #[arg(short, long)]
-        name: Option<String>,
-    },
-    Pgcli,
     Vault {
         #[arg(short, long)]
         path: Option<String>,
@@ -48,6 +49,9 @@ impl Args {
             ],
             ArcCommand::Pgcli => vec![
                 Goal::new(TaskType::RunPgcli, Some(self.clone()))
+            ],
+            ArcCommand::Influx => vec![
+                Goal::new(TaskType::LaunchInflux, Some(self.clone()))
             ],
             ArcCommand::Switch { aws_profile: true, .. } => vec![
                 Goal::new(TaskType::SelectAwsProfile, Some(self.clone()))
@@ -89,6 +93,7 @@ impl From<TaskType> for Goal {
                     use_current: true,
                 }
             })),
+            TaskType::SelectInfluxInstance => Goal::new(TaskType::SelectInfluxInstance, None),
             TaskType::SelectKubeContext => Goal::new(TaskType::SelectKubeContext, Some(Args {
                 command: ArcCommand::Switch {
                     aws_profile: false,

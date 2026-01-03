@@ -1,8 +1,10 @@
 pub mod get_aws_secret;
 pub mod get_vault_secret;
+pub mod launch_influx;
 pub mod login_to_vault;
 pub mod run_pgcli;
 pub mod select_aws_profile;
+pub mod select_influx_instance;
 pub mod select_kube_context;
 pub mod select_rds_instance;
 
@@ -10,12 +12,15 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use console::{style, StyledObject};
 use crate::{Args, Goal, GoalStatus};
+use crate::aws::influx::InfluxInstance;
 use crate::aws::rds::RdsInstance;
 use crate::tasks::get_aws_secret::GetAwsSecretTask;
 use crate::tasks::get_vault_secret::GetVaultSecretTask;
+use crate::tasks::launch_influx::LaunchInfluxTask;
 use crate::tasks::login_to_vault::LoginToVaultTask;
 use crate::tasks::run_pgcli::RunPgcliTask;
 use crate::tasks::select_aws_profile::{AwsProfileInfo, SelectAwsProfileTask};
+use crate::tasks::select_influx_instance::SelectInfluxInstanceTask;
 use crate::tasks::select_kube_context::SelectKubeContextTask;
 use crate::tasks::select_rds_instance::SelectRdsInstanceTask;
 
@@ -28,9 +33,11 @@ pub trait Task: Send + Sync {
 pub enum TaskType {
     GetAwsSecret,
     GetVaultSecret,
+    LaunchInflux,
     LoginToVault,
     RunPgcli,
     SelectAwsProfile,
+    SelectInfluxInstance,
     SelectKubeContext,
     SelectRdsInstance,
 }
@@ -40,9 +47,11 @@ impl TaskType {
         match self {
             TaskType::GetAwsSecret => Box::new(GetAwsSecretTask),
             TaskType::GetVaultSecret => Box::new(GetVaultSecretTask),
+            TaskType::LaunchInflux => Box::new(LaunchInfluxTask),
             TaskType::LoginToVault => Box::new(LoginToVaultTask),
             TaskType::RunPgcli => Box::new(RunPgcliTask),
             TaskType::SelectAwsProfile => Box::new(SelectAwsProfileTask),
+            TaskType::SelectInfluxInstance => Box::new(SelectInfluxInstanceTask),
             TaskType::SelectKubeContext => Box::new(SelectKubeContextTask),
             TaskType::SelectRdsInstance => Box::new(SelectRdsInstanceTask),
         }
@@ -51,13 +60,15 @@ impl TaskType {
 
 //TODO Should some of these result variants NOT be Option types?
 pub enum TaskResult {
-    AwsSecret(Option<String>),
-    VaultSecret(String),
-    VaultToken(String),
     AwsProfile{ old: Option<AwsProfileInfo>, new: Option<AwsProfileInfo> },
+    AwsSecret(Option<String>),
+    InfluxCommand(String),
+    InfluxInstance(InfluxInstance),
     KubeContext(Option<String>),
     PgcliCommand(String),
     RdsInstance(Option<RdsInstance>),
+    VaultSecret(String),
+    VaultToken(String),
 }
 
 impl TaskResult {
@@ -65,6 +76,9 @@ impl TaskResult {
         match self {
             TaskResult::AwsProfile{ old: _, new: Some(AwsProfileInfo { name, .. }) } => {
                 Some(String::from(format!("export AWS_PROFILE={name}\n")))
+            },
+            TaskResult::InfluxCommand(cmd) => {
+                Some(String::from(format!("{cmd}\n")))
             },
             TaskResult::KubeContext(Some(kubeconfig_path)) => {
                 Some(String::from(format!("export KUBECONFIG={kubeconfig_path}\n")))
