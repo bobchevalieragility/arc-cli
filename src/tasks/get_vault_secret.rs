@@ -1,7 +1,7 @@
-use cliclack::{intro, select};
+use cliclack::{intro, outro, select};
 use async_trait::async_trait;
 use std::collections::HashMap;
-use vaultrs::client::{VaultClient, VaultClientSettingsBuilder};
+use vaultrs::client::VaultClient;
 use crate::{Args, Goal, GoalStatus};
 use crate::tasks::{Task, TaskResult, TaskType};
 use vaultrs::kv2;
@@ -32,6 +32,7 @@ impl Task for GetVaultSecretTask {
         // Retrieve info about the desired AWS profile from state
         let aws_profile_result = state.get(&profile_goal)
             .expect("TaskResult for SelectAwsProfile not found");
+        // TODO Add a TaskResult::extract_value<T>() -> T method?
         let profile_info = match aws_profile_result {
             TaskResult::AwsProfile { old, new } => {
                 new.as_ref().or(old.as_ref())
@@ -51,145 +52,51 @@ impl Task for GetVaultSecretTask {
         };
 
         // Create Vault client using the token
-        // let settings = VaultClientSettingsBuilder::default()
-        //     .address(vault_instance.address())
-        //     .namespace(vault_instance.secrets_namespace(aws_account))
-        //     .token(token)
-        //     .build()
-        //     .expect("Unable to build VaultClient");
-        // let client = VaultClient::new(settings).expect("Vault Client creation failed");
         let client = vault::create_client(
             vault_instance.address(),
             vault_instance.secrets_namespace(aws_account),
             Some(token.to_string())
         );
 
-        // Login to Vault using OIDC
-        //TODO once we change signature to return Result, propagate error instead of unwrapping it
-        // let token = vault_login(&mut client).await.expect("Vault login failed");
-        // client.set_token(&token);
-        // client.settings.namespace = Some("admin/dev".to_string());
+        // Determine which secret to retrieve, prompting user if necessary
+        let secret_path = prompt_for_secret_path(&client).await
+            .expect("Failed to get secret path");
 
-        // let list_response = kv2::list(&client, "kv-v2", "mp/metrics")
-        //     .await.expect("Unable to list Vault secrets"); // returns []
-        // let list_response = kv2::list(&client, "kv-v2", "/v1/admin/dev/kv-v2/data/mp/metrics")
-        //     .await.expect("Unable to list Vault secrets"); // bad
-        let list_response = kv2::list(&client, "kv-v2", "mp")
-            .await.expect("Unable to list Vault secrets"); // returns ["metrics", "artifactory-credentials", ...]
-        println!("{:?}", list_response);
+        // Retrieve the secret key-value pairs from Vault
+        let secrets: HashMap<String, serde_json::Value> = kv2::read(&client, "kv-v2", &secret_path)
+            .await.expect("Unable to read Vault secret");
 
-        // let secret: HashMap<String, serde_json::Value> = kv2::read(&client, "kv-v2", "mp/metrics")
-        //     .await.expect("Unable to read Vault secret");
-        // println!("secret: {:?}", secret);
+        // Concatenate k: v pairs into a single, newline-delimited string
+        let secrets_str = secrets.iter()
+            .map(|(k, v)| format!("{}: {}", k, v))
+            .collect::<Vec<String>>()
+            .join("\n");
 
-
-        // outro(format!("Secret value: {}", secret_value)).unwrap();
-        // GoalStatus::Completed(TaskResult::VaultSecret(Some(secret_value)))
-        GoalStatus::Completed(TaskResult::VaultSecret("foo".to_string()))
+        outro(format!("Secrets:\n{}", secrets_str)).unwrap();
+        GoalStatus::Completed(TaskResult::VaultSecret(secrets_str))
     }
 }
 
-async fn prompt_for_vault_secret(client: &VaultClient) -> String {
-    let available_secrets = get_available_secrets(client).await;
+async fn prompt_for_secret_path(client: &VaultClient) -> Result<String, Box<dyn std::error::Error>> {
+    let mut current_path = String::new();
 
-    let mut menu = select("Which secret would you like to retrieve?");
-    for secret in &available_secrets {
-        menu = menu.item(secret, secret, "");
+    while current_path.is_empty() || current_path.ends_with('/') {
+        let items = kv2::list(client, "kv-v2", &current_path).await?;
+        println!("items: {:?}", items);
+
+        // Collect all available sub-paths
+        let available_paths: Vec<String> = items
+            .iter()
+            .map(|i|  format!("{}{}", current_path, i))
+            .collect();
+
+        // Prompt user to select a path
+        let mut menu = select("Select a secret path");
+        for path in &available_paths {
+            menu = menu.item(path, path, "");
+        }
+        current_path = menu.interact()?.to_string();
     }
 
-    menu.interact().unwrap().to_string()
+    Ok(current_path.to_string())
 }
-
-async fn get_available_secrets(client: &VaultClient) -> Vec<String> {
-    // // List secrets asynchronously
-    // let paginator = client.list_secrets().into_paginator();
-    // let pages: Vec<_> = paginator.send().collect::<Vec<_>>().await;
-
-    // Process the results
-    let mut all_secrets: Vec<String> = Vec::new();
-    // for page_result in pages {
-    //     let page = page_result.unwrap();
-    //     let secrets: Vec<String> = page.secret_list()
-    //         .iter()
-    //         .filter_map(|e| e.name.clone())
-    //         .collect();
-    //     all_secrets.extend(secrets);
-    // }
-    //
-    // if all_secrets.is_empty() {
-    //     panic!("No AWS secrets found");
-    // }
-
-    all_secrets.sort();
-    all_secrets
-}
-
-// fn lookup_address(account: &AwsAccount) -> &'static str {
-// fn get_vault_address(account: &AwsAccount) -> &str {
-//     match account {
-//         AwsAccount::Dev => "https://nonprod-public-vault-b4ed83ad.91d9045d.z1.hashicorp.cloud:8200",
-//         AwsAccount::Stage => "https://nonprod-public-vault-b4ed83ad.91d9045d.z1.hashicorp.cloud:8200",
-//         AwsAccount::Prod => "https://prod-public-vault-752e7a3c.c39279c9.z1.hashicorp.cloud:8200",
-//     }
-// }
-
-// async fn vault_login(client: &mut VaultClient) -> Result<String, Box<dyn std::error::Error>> {
-//     let redirect_host = "localhost:8250";
-//     let redirect_uri = format!("http://{}/oidc/callback", redirect_host);
-//     let server = tiny_http::Server::http(redirect_host)
-//         .map_err(|e| e.to_string())?;
-//         // .expect("Could not start server");
-//
-//     let auth_response = oidc::auth(
-//         client,
-//         "oidc", // mount path (defaults to "oidc")
-//         &redirect_uri,
-//         Some(VAULT_OIDC_ROLE.to_string()),
-//     // ).await.expect("Vault OIDC auth failed");
-//     ).await?;
-//
-//     let auth_resp_url = Url::parse(&auth_response.auth_url)?;
-//         // .expect("Could not parse URL");
-//
-//     let nonce = auth_resp_url.query_pairs()
-//         .find(|(key, _)| key == "nonce")
-//         .map(|(_, value)| value.into_owned())
-//         .ok_or("No nonce found in redirect")?;
-//         // .expect("No nonce found in redirect");
-//
-//     println!("Opening browser for Okta login");
-//     let _ = webbrowser::open(&auth_response.auth_url);
-//
-//     let request = server.recv().expect("Server receive failed");
-//     let url = Url::parse(&format!("http://localhost{}", request.url()))?;
-//         // .expect("Could not parse URL");
-//
-//     // Extract query parameters
-//     let code = url.query_pairs()
-//         .find(|(key, _)| key == "code")
-//         .map(|(_, value)| value.into_owned())
-//         .ok_or("No code found in redirect")?;
-//         // .expect("No code found in redirect");
-//
-//     let state = url.query_pairs()
-//         .find(|(key, _)| key == "state")
-//         .map(|(_, value)| value.into_owned())
-//         .ok_or("No state found in redirect")?;
-//         // .expect("No state found in redirect");
-//
-//     // 5. Respond to the user in the browser
-//     let response = tiny_http::Response::from_string("Authentication successful! You can close this tab.");
-//     // request.respond(response).expect("Could not send response");
-//     request.respond(response)?;
-//
-//     // 6. Complete the login with Vault using the captured code
-//     let token_auth = oidc::callback(client, "oidc", state.as_str(), nonce.as_str(), code.as_str()).await.expect("Vault OIDC callback failed");
-//     println!("token_auth: {:?}", token_auth);
-//     Ok(token_auth.client_token)
-// }
-
-// fn extract_query_param(url: &Url, param: &str) -> Option<String> {
-//     url.query_pairs()
-//         .find(|(key, _)| key == param)
-//         .map(|(_, value)| value.into_owned())
-// }
