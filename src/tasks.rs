@@ -58,7 +58,6 @@ impl TaskType {
     }
 }
 
-//TODO Should some of these result variants NOT be Option types?
 pub enum TaskResult {
     AwsProfile{ old: Option<AwsProfileInfo>, new: Option<AwsProfileInfo> },
     AwsSecret(String),
