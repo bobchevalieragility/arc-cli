@@ -63,6 +63,6 @@ impl Task for LaunchInfluxTask {
         // Open the user's default web browser to the auth URL
         let _ = webbrowser::open(influx_instance.url());
 
-        GoalStatus::Completed(TaskResult::InfluxCommand(output))
+        GoalStatus::Completed(TaskResult::InfluxCommand)
     }
 }

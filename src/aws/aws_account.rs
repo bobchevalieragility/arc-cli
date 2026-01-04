@@ -1,4 +1,5 @@
 use std::convert::From;
+use crate::aws::influx::InfluxInstance;
 use crate::aws::rds::RdsInstance;
 use crate::aws::vault::VaultInstance;
 
@@ -25,6 +26,14 @@ impl AwsAccount {
             AwsAccount::Dev => VaultInstance::NonProd,
             AwsAccount::Stage => VaultInstance::NonProd,
             AwsAccount::Prod => VaultInstance::Prod,
+        }
+    }
+
+    pub fn influx_instances(&self) -> Vec<InfluxInstance> {
+        match self {
+            AwsAccount::Dev => vec![InfluxInstance::MetricsDev],
+            AwsAccount::Stage => vec![InfluxInstance::MetricsStage],
+            AwsAccount::Prod => vec![InfluxInstance::MetricsProd],
         }
     }
 

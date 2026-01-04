@@ -2,7 +2,6 @@ use cliclack::{intro, outro, select};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use crate::{Args, Goal, GoalStatus};
-use crate::aws::aws_account::AwsAccount;
 use crate::aws::rds::RdsInstance;
 use crate::tasks::{color_output, Task, TaskResult, TaskType};
 
@@ -31,17 +30,21 @@ impl Task for SelectRdsInstanceTask {
             _ => panic!("Expected TaskResult::AwsProfile"),
         };
 
-        // Prompt the user to select an RDS instance
-        let rds_instance = prompt_for_rds_instance(&profile_info.account).await;
+        // Get a list of all available RDS instances for this account
+        let available_rds_instances = profile_info.account.rds_instances();
+
+        // Prompt user to select a RDS instance only if there are multiple options
+        let rds_instance = match available_rds_instances.len() {
+            1 => available_rds_instances[0],
+            _ => prompt_for_rds_instance(available_rds_instances).await
+        };
 
         outro(format!("RDS instance: {}", color_output(rds_instance.name(), is_terminal_goal))).unwrap();
         GoalStatus::Completed(TaskResult::RdsInstance(Some(rds_instance)))
     }
 }
 
-async fn prompt_for_rds_instance(account: &AwsAccount) -> RdsInstance {
-    let available_rds_instances = account.rds_instances();
-
+async fn prompt_for_rds_instance(available_rds_instances: Vec<RdsInstance>) -> RdsInstance {
     let mut menu = select("Which RDS instance would you like to connect to?");
     for rds in &available_rds_instances {
         menu = menu.item(rds.name(), rds.name(), "");

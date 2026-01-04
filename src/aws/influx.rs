@@ -1,10 +1,10 @@
 use std::convert::From;
-use crate::aws::rds::RdsInstance;
 
 const METRICS_DEV_NAME: &str = "metrics (dev)";
 const METRICS_STAGE_NAME: &str = "metrics (stage)";
 const METRICS_PROD_NAME: &str = "metrics (prod)";
 
+#[derive(Debug, Clone, Copy)]
 pub enum InfluxInstance {
     MetricsDev,
     MetricsStage,
@@ -12,14 +12,6 @@ pub enum InfluxInstance {
 }
 
 impl InfluxInstance {
-    pub fn all() -> Vec<InfluxInstance> {
-        vec![
-            InfluxInstance::MetricsDev,
-            InfluxInstance::MetricsStage,
-            InfluxInstance::MetricsProd,
-        ]
-    }
-
     pub fn name(&self) -> &str {
         match self {
             InfluxInstance::MetricsDev => METRICS_DEV_NAME,

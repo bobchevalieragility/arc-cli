@@ -62,7 +62,7 @@ impl TaskType {
 pub enum TaskResult {
     AwsProfile{ old: Option<AwsProfileInfo>, new: Option<AwsProfileInfo> },
     AwsSecret(Option<String>),
-    InfluxCommand(String),
+    InfluxCommand,
     InfluxInstance(InfluxInstance),
     KubeContext(Option<String>),
     PgcliCommand(String),
@@ -76,9 +76,6 @@ impl TaskResult {
         match self {
             TaskResult::AwsProfile{ old: _, new: Some(AwsProfileInfo { name, .. }) } => {
                 Some(String::from(format!("export AWS_PROFILE={name}\n")))
-            },
-            TaskResult::InfluxCommand(cmd) => {
-                Some(String::from(format!("{cmd}\n")))
             },
             TaskResult::KubeContext(Some(kubeconfig_path)) => {
                 Some(String::from(format!("export KUBECONFIG={kubeconfig_path}\n")))

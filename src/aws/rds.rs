@@ -7,6 +7,7 @@ const EVENTLOG_DEV_NAME: &str = "event-log (dev)";
 const EVENTLOG_STAGE_NAME: &str = "event-log (stage)";
 const EVENTLOG_PROD_NAME: &str = "event-log (prod)";
 
+#[derive(Debug, Clone, Copy)]
 pub enum RdsInstance {
     WorkcellDev,
     WorkcellStage,
