@@ -7,6 +7,7 @@ pub mod select_aws_profile;
 pub mod select_influx_instance;
 pub mod select_kube_context;
 pub mod select_rds_instance;
+pub mod set_log_level;
 
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -23,6 +24,8 @@ use crate::tasks::select_aws_profile::{AwsProfileInfo, SelectAwsProfileTask};
 use crate::tasks::select_influx_instance::SelectInfluxInstanceTask;
 use crate::tasks::select_kube_context::SelectKubeContextTask;
 use crate::tasks::select_rds_instance::SelectRdsInstanceTask;
+use crate::tasks::set_log_level::SetLogLevelTask;
+use crate::tasks::TaskType::SetLogLevel;
 
 #[async_trait]
 pub trait Task: Send + Sync {
@@ -40,6 +43,7 @@ pub enum TaskType {
     SelectInfluxInstance,
     SelectKubeContext,
     SelectRdsInstance,
+    SetLogLevel,
 }
 
 impl TaskType {
@@ -54,6 +58,7 @@ impl TaskType {
             TaskType::SelectInfluxInstance => Box::new(SelectInfluxInstanceTask),
             TaskType::SelectKubeContext => Box::new(SelectKubeContextTask),
             TaskType::SelectRdsInstance => Box::new(SelectRdsInstanceTask),
+            TaskType::SetLogLevel => Box::new(SetLogLevelTask),
         }
     }
 }
@@ -64,6 +69,7 @@ pub enum TaskResult {
     InfluxCommand,
     InfluxInstance(InfluxInstance),
     KubeContext(Option<String>),
+    LogLevel,
     PgcliCommand(String),
     RdsInstance(RdsInstance),
     VaultSecret(String),

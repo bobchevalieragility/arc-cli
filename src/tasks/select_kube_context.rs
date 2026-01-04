@@ -42,6 +42,9 @@ impl Task for SelectKubeContextTask {
             .expect("Failed to serialize kubeconfig to YAML");
         fs::write(&tmp_kube_path, yaml_data).expect("Failed to write kubeconfig to temp file");
 
+        // Export the KUBECONFIG environment variable so that it can be used by dependent tasks
+        unsafe { env::set_var("KUBECONFIG", &tmp_kube_path); }
+
         outro(format!("Kube context: {}", color_output(&selected_kube_context, is_terminal_goal))).unwrap();
         let path_str = Some(tmp_kube_path.to_string_lossy().to_string());
         GoalStatus::Completed(TaskResult::KubeContext(path_str))

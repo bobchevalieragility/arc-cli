@@ -21,6 +21,7 @@ enum ArcCommand {
         name: Option<String>,
     },
     Influx,
+    LogLevel,
     Pgcli,
     Switch {
         #[arg(short, long)]
@@ -46,6 +47,9 @@ impl Args {
         match self.command {
             ArcCommand::AwsSecret { .. } => vec![
                 Goal::new(TaskType::GetAwsSecret, Some(self.clone()))
+            ],
+            ArcCommand::LogLevel => vec![
+                Goal::new(TaskType::SetLogLevel, Some(self.clone()))
             ],
             ArcCommand::Pgcli => vec![
                 Goal::new(TaskType::RunPgcli, Some(self.clone()))
