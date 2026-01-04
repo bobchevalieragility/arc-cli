@@ -57,7 +57,7 @@ impl Task for GetAwsSecretTask {
             .secret_string.expect("Secret may be binary or not found");
 
         outro_note(color_output("Secret", is_terminal_goal), &secret_value).unwrap();
-        GoalStatus::Completed(TaskResult::AwsSecret(Some(secret_value)))
+        GoalStatus::Completed(TaskResult::AwsSecret(secret_value))
     }
 }
 

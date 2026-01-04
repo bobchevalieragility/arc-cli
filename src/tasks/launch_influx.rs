@@ -39,9 +39,7 @@ impl Task for LaunchInfluxTask {
         let secret_result = state.get(&secret_goal)
             .expect("TaskResult for GetAwsSecret not found");
         let secret_value = match secret_result {
-            TaskResult::AwsSecret(value) => {
-                &value.as_ref().expect("No AWS secret available")
-            },
+            TaskResult::AwsSecret(value) => value,
             _ => panic!("Expected TaskResult::AwsSecret"),
         };
 

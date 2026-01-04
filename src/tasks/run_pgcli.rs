@@ -21,9 +21,7 @@ impl Task for RunPgcliTask {
         let rds_selection_result = state.get(&rds_selection_goal)
             .expect("TaskResult for SelectRdsInstance not found");
         let rds_instance = match rds_selection_result {
-            TaskResult::RdsInstance(value) => {
-               &value.as_ref().expect("No RDS instance available")
-            },
+            TaskResult::RdsInstance(value) => value,
             _ => panic!("Expected TaskResult::RdsInstance"),
         };
 
@@ -39,9 +37,7 @@ impl Task for RunPgcliTask {
         let secret_result = state.get(&secret_goal)
             .expect("TaskResult for GetAwsSecret not found");
         let secret_value = match secret_result {
-            TaskResult::AwsSecret(value) => {
-                &value.as_ref().expect("No AWS secret available")
-            },
+            TaskResult::AwsSecret(value) => value,
             _ => panic!("Expected TaskResult::AwsSecret"),
         };
 

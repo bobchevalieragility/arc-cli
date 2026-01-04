@@ -40,7 +40,7 @@ impl Task for SelectRdsInstanceTask {
         };
 
         outro(format!("RDS instance: {}", color_output(rds_instance.name(), is_terminal_goal))).unwrap();
-        GoalStatus::Completed(TaskResult::RdsInstance(Some(rds_instance)))
+        GoalStatus::Completed(TaskResult::RdsInstance(rds_instance))
     }
 }
 
