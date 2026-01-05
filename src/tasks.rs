@@ -22,7 +22,7 @@ use crate::tasks::login_to_vault::LoginToVaultTask;
 use crate::tasks::run_pgcli::RunPgcliTask;
 use crate::tasks::select_aws_profile::{AwsProfileInfo, SelectAwsProfileTask};
 use crate::tasks::select_influx_instance::SelectInfluxInstanceTask;
-use crate::tasks::select_kube_context::SelectKubeContextTask;
+use crate::tasks::select_kube_context::{KubeContextInfo, SelectKubeContextTask};
 use crate::tasks::select_rds_instance::SelectRdsInstanceTask;
 use crate::tasks::set_log_level::SetLogLevelTask;
 use crate::tasks::TaskType::SetLogLevel;
@@ -68,7 +68,7 @@ pub enum TaskResult {
     AwsSecret(String),
     InfluxCommand,
     InfluxInstance(InfluxInstance),
-    KubeContext(Option<String>),
+    KubeContext(Option<KubeContextInfo>),
     LogLevel,
     PgcliCommand(String),
     RdsInstance(RdsInstance),
@@ -82,8 +82,9 @@ impl TaskResult {
             TaskResult::AwsProfile{ old: _, new: Some(AwsProfileInfo { name, .. }) } => {
                 Some(String::from(format!("export AWS_PROFILE={name}\n")))
             },
-            TaskResult::KubeContext(Some(kubeconfig_path)) => {
-                Some(String::from(format!("export KUBECONFIG={kubeconfig_path}\n")))
+            TaskResult::KubeContext(Some(KubeContextInfo { kubeconfig, .. })) => {
+                let path = kubeconfig.to_string_lossy();
+                Some(String::from(format!("export KUBECONFIG={path}\n")))
             },
             TaskResult::PgcliCommand(cmd) => {
                 Some(String::from(format!("{cmd}\n")))

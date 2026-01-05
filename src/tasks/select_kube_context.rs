@@ -5,6 +5,7 @@ use std::{env, fs};
 use std::path::PathBuf;
 use kube::config::Kubeconfig;
 use crate::{ArcCommand, Args, Goal, GoalStatus};
+use crate::aws::eks_cluster::EksCluster;
 use crate::tasks::{color_output, Task, TaskResult};
 
 #[derive(Debug)]
@@ -29,6 +30,16 @@ impl Task for SelectKubeContextTask {
         intro("Kube Context Selector").unwrap();
         let selected_kube_context = prompt_for_kube_context(&config);
 
+        // Find the cluster associated with the selected context
+        let named_context = config.contexts.iter()
+            .find(|ctx| ctx.name == selected_kube_context)
+            .expect("Selected context not found in kubeconfig.");
+        let cluster_name = match &named_context.context {
+            Some(ctx) => ctx.cluster.clone(),
+            None => panic!("No context data found for selected context."),
+        };
+        let eks_cluster = EksCluster::from(cluster_name.as_str());
+
         // Modify the current context in the in-memory config
         config.current_context = Some(selected_kube_context.clone());
 
@@ -46,8 +57,19 @@ impl Task for SelectKubeContextTask {
         unsafe { env::set_var("KUBECONFIG", &tmp_kube_path); }
 
         outro(format!("Kube context: {}", color_output(&selected_kube_context, is_terminal_goal))).unwrap();
-        let path_str = Some(tmp_kube_path.to_string_lossy().to_string());
-        GoalStatus::Completed(TaskResult::KubeContext(path_str))
+        let info = Some(KubeContextInfo::new(eks_cluster, tmp_kube_path));
+        GoalStatus::Completed(TaskResult::KubeContext(info))
+    }
+}
+
+pub struct KubeContextInfo {
+    pub cluster: EksCluster,
+    pub kubeconfig: PathBuf,
+}
+
+impl KubeContextInfo {
+    pub fn new(cluster: EksCluster, kubeconfig: PathBuf) -> KubeContextInfo {
+        KubeContextInfo { cluster, kubeconfig }
     }
 }
 
