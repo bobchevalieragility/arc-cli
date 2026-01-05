@@ -6,9 +6,9 @@ use std::collections::HashMap;
 use console::style;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
-use k8s_openapi::api::core::v1::{Pod, Service};
+use k8s_openapi::api::core::v1::{Pod, Service, ServiceSpec};
 use tokio::task::AbortHandle;
-use crate::{Args, Goal, GoalStatus};
+use crate::{ArcCommand, Args, Goal, GoalStatus};
 use crate::aws::eks_cluster::EksCluster;
 use crate::tasks::{sleep_indicator, Task, TaskResult, TaskType};
 
@@ -49,13 +49,27 @@ impl Task for PortForwardTask {
             .expect("Could not get default client");
         spinner.stop("Kubernetes client created");
 
-        // let namespace = "development";
-        let service_name = "metrics";
-        let service_port = 8080u16;
+        let service_api: Api<Service> = Api::namespaced(client.clone(), &cluster.namespace());
+
+        // Determine which service to port-forward to, prompting user if necessary
+        let service = match &args.as_ref().expect("Args is None").command {
+            ArcCommand::PortForward{ service: Some(name) } => {
+                ServiceInfo {
+                    name: name.clone(),
+                    port: get_service_port(&service_api, name).await,
+                }
+            },
+            _ => {
+                let app_services = get_app_services(&service_api).await;
+                prompt_for_service(&app_services)
+            },
+        };
+
+        //TODO generate a random, unused port
         let local_port = 8082u16;
 
         // Find one of the given service's pods
-        let pod = get_service_pod(service_name, cluster, &client).await;
+        let pod = get_service_pod(&service.name, cluster, &client).await;
 
         // Clone values that need to be moved into the async block
         let namespace = cluster.namespace();
@@ -63,7 +77,7 @@ impl Task for PortForwardTask {
 
         // Start port forwarding using Kubernetes API
         let port_forward_handle = tokio::spawn(async move {
-            if let Err(e) = port_forward(client, &namespace, &pod_name, local_port, service_port).await {
+            if let Err(e) = port_forward(client, &namespace, &pod_name, local_port, service.port).await {
                 eprintln!("Port-forward error: {}", e);
             }
         });
@@ -77,7 +91,7 @@ impl Task for PortForwardTask {
         ).await;
 
         // Display summary message to user
-        let prompt = format!("Port-Forwarding to {} service", service_name);
+        let prompt = format!("Port-Forwarding to {} service", service.name);
         let mut summary = format!("Listening on 127.0.0.1:{}", local_port);
         if is_terminal_goal {
             // Assume user wants to keep port-forward open until manually closed
@@ -111,12 +125,67 @@ impl Drop for PortForwardInfo {
     }
 }
 
+#[derive(Clone)]
+struct ServiceInfo {
+    name: String,
+    port: u16,
+}
+
+async fn get_app_services(service_api: &Api<Service>) -> Vec<ServiceInfo> {
+    // Retrieve ALL services for the given namespace
+    let list_params = ListParams::default();
+    let svc_list = service_api.list(&list_params).await
+        .expect("Failed to list services");
+
+    // Filter out services that don't contain "app" in their selector
+    svc_list.items.into_iter()
+        .filter(|svc| {
+            svc.spec.as_ref()
+                .and_then(|spec| spec.selector.as_ref())
+                .map_or(false, |selector| selector.contains_key("app"))
+        }).map(|svc| {
+            let name = svc.metadata.name.unwrap();
+            let port = extract_port(svc.spec);
+            ServiceInfo { name, port }
+        }).collect()
+}
+
+fn prompt_for_service(available_services: &Vec<ServiceInfo>) -> ServiceInfo {
+    let mut menu = select("Which service would you like to port-forward to?");
+    for svc in available_services {
+        menu = menu.item(&svc.name, &svc.name, "");
+    }
+
+    let selected_name = menu.interact().unwrap();
+
+    // Find the ServiceInfo that matches the selected name
+    available_services
+        .iter()
+        .find(|svc| svc.name.as_str() == selected_name)
+        .expect("Selected service not found in available services")
+        .clone()
+}
+
+async fn get_service_port(service_api: &Api<Service>, service_name: &str) -> u16 {
+    let svc = service_api.get(service_name).await
+        .unwrap_or_else(|_| panic!("Failed to get service: {service_name}"));
+    extract_port(svc.spec)
+}
+
+fn extract_port(spec: Option<ServiceSpec>) -> u16 {
+    spec.as_ref()
+        .and_then(|spec| spec.ports.as_ref())
+        .and_then(|ports| ports.first())
+        .map_or(0, |port| port.port as u16)
+}
+
 async fn get_service_pod(service_name: &str, cluster: &EksCluster, client: &Client) -> String {
     // Get the selector label for the given service so that we can find its pods
     let selector_label = get_selector_label(service_name, cluster, &client).await;
 
     // List pods matching the service selector
     let pod_api: Api<Pod> = Api::namespaced(client.clone(), &cluster.namespace());
+    //TODO return Selector from get_selector_label and then call labels_from(Selector)
     let list_params = ListParams::default().labels(&selector_label);
     let pod_list = pod_api.list(&list_params).await
         .expect("Failed to list pods");
@@ -138,7 +207,7 @@ async fn get_selector_label(service_name: &str, cluster: &EksCluster, client: &C
         .and_then(|spec| spec.selector)
         .expect("Service has no selector");
 
-    // Return label selector string (e.g., "app=metrics,tier=backend")
+    // Return label selector string (e.g., "app=metrics")
     selector
         .iter()
         .map(|(k, v)| format!("{}={}", k, v))
