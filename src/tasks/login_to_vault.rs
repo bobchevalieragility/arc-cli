@@ -29,9 +29,9 @@ impl Task for LoginToVaultTask {
         let aws_profile_result = state.get(&profile_goal)
             .expect("TaskResult for SelectAwsProfile not found");
         let profile_info = match aws_profile_result {
-            TaskResult::AwsProfile { old, new } => {
-                new.as_ref().or(old.as_ref())
-                    .expect("No AWS profile available (both old and new are None)")
+            TaskResult::AwsProfile { existing, updated } => {
+                updated.as_ref().or(existing.as_ref())
+                    .expect("No AWS profile available (both existing and updated are None)")
             },
             _ => panic!("Expected TaskResult::AwsProfile"),
         };

@@ -35,9 +35,9 @@ impl Task for GetVaultSecretTask {
             .expect("TaskResult for SelectAwsProfile not found");
         // TODO Add a TaskResult::extract_value<T>() -> T method?
         let profile_info = match aws_profile_result {
-            TaskResult::AwsProfile { old, new } => {
-                new.as_ref().or(old.as_ref())
-                    .expect("No AWS profile available (both old and new are None)")
+            TaskResult::AwsProfile { existing, updated } => {
+                updated.as_ref().or(existing.as_ref())
+                    .expect("No AWS profile available (both existing and updated are None)")
             },
             _ => panic!("Expected TaskResult::AwsProfile"),
         };

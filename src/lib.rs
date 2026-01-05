@@ -23,6 +23,10 @@ enum ArcCommand {
     Influx,
     LogLevel,
     Pgcli,
+    PortForward {
+        #[arg(short, long)]
+        service: Option<String>,
+    },
     Switch {
         #[arg(short, long)]
         aws_profile: bool,
@@ -53,6 +57,9 @@ impl Args {
             ],
             ArcCommand::Pgcli => vec![
                 Goal::new(TaskType::RunPgcli, Some(self.clone()))
+            ],
+            ArcCommand::PortForward { .. } => vec![
+                Goal::new(TaskType::PortForward, Some(self.clone()))
             ],
             ArcCommand::Influx => vec![
                 Goal::new(TaskType::LaunchInflux, Some(self.clone()))

@@ -15,10 +15,18 @@ pub struct SelectKubeContextTask;
 impl Task for SelectKubeContextTask {
     async fn execute(&self, args: &Option<Args>, _state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
         if let ArcCommand::Switch{ use_current: true, .. } = &args.as_ref().expect("Args is None").command {
-            // User wants to use current KUBECONFIG, if it's already set
-            let current_kubeconfig = env::var("KUBECONFIG");
-            if current_kubeconfig.is_ok() {
-                return GoalStatus::Completed(TaskResult::KubeContext(None))
+            if let Ok(current_kubeconfig) = env::var("KUBECONFIG") {
+                let kube_path = PathBuf::from(current_kubeconfig);
+                let config = Kubeconfig::read_from(&kube_path)
+                    .expect("Could not read kube config from KUBECONFIG path.");
+                let current_context = config.current_context.as_ref()
+                    .expect("No current context set in kubeconfig.");
+
+                // Find the cluster associated with the current context
+                let eks_cluster = get_cluster(current_context, &config);
+                let info = KubeContextInfo::new(eks_cluster, kube_path);
+                let task_result = TaskResult::KubeContext{ existing: Some(info), updated: None };
+                return GoalStatus::Completed(task_result)
             }
         }
 
@@ -31,14 +39,7 @@ impl Task for SelectKubeContextTask {
         let selected_kube_context = prompt_for_kube_context(&config);
 
         // Find the cluster associated with the selected context
-        let named_context = config.contexts.iter()
-            .find(|ctx| ctx.name == selected_kube_context)
-            .expect("Selected context not found in kubeconfig.");
-        let cluster_name = match &named_context.context {
-            Some(ctx) => ctx.cluster.clone(),
-            None => panic!("No context data found for selected context."),
-        };
-        let eks_cluster = EksCluster::from(cluster_name.as_str());
+        let eks_cluster = get_cluster(&selected_kube_context, &config);
 
         // Modify the current context in the in-memory config
         config.current_context = Some(selected_kube_context.clone());
@@ -57,8 +58,9 @@ impl Task for SelectKubeContextTask {
         unsafe { env::set_var("KUBECONFIG", &tmp_kube_path); }
 
         outro(format!("Kube context: {}", color_output(&selected_kube_context, is_terminal_goal))).unwrap();
-        let info = Some(KubeContextInfo::new(eks_cluster, tmp_kube_path));
-        GoalStatus::Completed(TaskResult::KubeContext(info))
+        let info = KubeContextInfo::new(eks_cluster, tmp_kube_path);
+        let task_result = TaskResult::KubeContext{ existing: None, updated: Some(info) };
+        GoalStatus::Completed(task_result)
     }
 }
 
@@ -75,6 +77,17 @@ impl KubeContextInfo {
 
 fn default_kube_path() -> PathBuf {
     home::home_dir().expect("Unable to find HOME dir.").join(".kube").join("config")
+}
+
+fn get_cluster(context_name: &str, config: &Kubeconfig) -> EksCluster {
+    let named_context = config.contexts.iter()
+        .find(|ctx| ctx.name == context_name)
+        .expect("Provided context not found in kubeconfig.");
+    let cluster_name = match &named_context.context {
+        Some(ctx) => ctx.cluster.clone(),
+        None => panic!("No context data found for provided context."),
+    };
+    EksCluster::from(cluster_name.as_str())
 }
 
 fn prompt_for_kube_context(config: &Kubeconfig) -> String {

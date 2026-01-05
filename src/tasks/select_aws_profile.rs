@@ -20,8 +20,8 @@ impl Task for SelectAwsProfileTask {
             // User wants to use current AWS_PROFILE, if it's already set
             if let Ok(current_profile) = env::var("AWS_PROFILE") {
                 let account = get_aws_account(&current_profile).await;
-                let profile_info = AwsProfileInfo::new(current_profile, account);
-                let task_result = TaskResult::AwsProfile{ old: Some(profile_info), new: None };
+                let info = AwsProfileInfo::new(current_profile, account);
+                let task_result = TaskResult::AwsProfile{ existing: Some(info), updated: None };
                 return GoalStatus::Completed(task_result);
             }
         }
@@ -32,8 +32,8 @@ impl Task for SelectAwsProfileTask {
         let account_id = get_aws_account(&selected_aws_profile).await;
         outro(format!("AWS profile: {}", color_output(&selected_aws_profile, is_terminal_goal))).unwrap();
 
-        let profile_info = AwsProfileInfo::new(selected_aws_profile, account_id);
-        let task_result = TaskResult::AwsProfile{ old: None, new: Some(profile_info) };
+        let info = AwsProfileInfo::new(selected_aws_profile, account_id);
+        let task_result = TaskResult::AwsProfile{ existing: None, updated: Some(info) };
         GoalStatus::Completed(task_result)
     }
 }
