@@ -14,37 +14,52 @@ pub struct Args {
 }
 
 #[derive(Subcommand, Clone, Debug, PartialEq, Eq, Hash)]
-//TODO add descriptions to all of these commands and args
 enum ArcCommand {
+    #[command(about = "Retrieve a secret value from AWS Secrets Manager")]
     AwsSecret {
-        #[arg(short, long)]
+        #[arg(short, long, help = "Name of the secret to retrieve (if omitted, will prompt)")]
         name: Option<String>,
     },
+    #[command(about = "Launch the InfluxDB UI")]
     Influx,
-    LogLevel,
+    #[command(about = "View or set the log level for a Java service that uses Actuator")]
+    LogLevel {
+        #[arg(short, long, help = "Service name, e.g. 'metrics' (if omitted, will prompt)")]
+        service: Option<String>,
+
+        #[arg(short, long, help = "Desired log level (if omitted, will prompt)")]
+        set: Option<String>,
+
+        #[arg(short, long, help = "Just print the current log level")]
+        get: bool,
+    },
+    #[command(about = "Launch pgcli to interact with a Postgres RDS instance")]
     Pgcli,
+    #[command(about = "Start port-forwarding to a Kubernetes service")]
     PortForward {
-        #[arg(short, long)]
+        #[arg(short, long, help = "Service name, e.g. 'metrics' (if omitted, will prompt)")]
         service: Option<String>,
 
         #[arg(short, long, help = "Local port (defaults to random, unused port)")]
         port: Option<u16>,
     },
+    #[command(about = "Switch AWS profile and/or Kubernetes context")]
     Switch {
-        #[arg(short, long)]
+        #[arg(short, long, help = "Switch AWS profile (if false and kube_context is false, will switch both)")]
         aws_profile: bool,
 
-        #[arg(short, long)]
+        #[arg(short, long, help = "Switch kube context (if false and kube_context is false, will switch both)")]
         kube_context: bool,
 
-        #[arg(short, long)]
+        #[arg(short, long, help = "Whether to skip if already set (defaults to false)")]
         use_current: bool,
     },
+    #[command(about = "Retrieve a secret value from Vault")]
     Vault {
-        #[arg(short, long)]
+        #[arg(short, long, help = "Path to secret to retrieve (if omitted, will prompt)")]
         path: Option<String>,
 
-        #[arg(short, long)]
+        #[arg(short, long, help = "Field within secret to retrieve (defaults to entire secret)")]
         field: Option<String>,
     }
 }
@@ -55,7 +70,7 @@ impl Args {
             ArcCommand::AwsSecret { .. } => vec![
                 Goal::new(TaskType::GetAwsSecret, Some(self.clone()))
             ],
-            ArcCommand::LogLevel => vec![
+            ArcCommand::LogLevel { .. } => vec![
                 Goal::new(TaskType::SetLogLevel, Some(self.clone()))
             ],
             ArcCommand::Pgcli => vec![
