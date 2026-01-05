@@ -53,7 +53,7 @@ impl Task for PortForwardTask {
 
         // Determine which service to port-forward to, prompting user if necessary
         let service = match &args.as_ref().expect("Args is None").command {
-            ArcCommand::PortForward{ service: Some(name) } => {
+            ArcCommand::PortForward{ service: Some(name), .. } => {
                 ServiceInfo {
                     name: name.clone(),
                     port: get_service_port(&service_api, name).await,
@@ -65,8 +65,11 @@ impl Task for PortForwardTask {
             },
         };
 
-        //TODO generate a random, unused port
-        let local_port = 8082u16;
+        // Determine which local port will be used for port-forwarding
+        let local_port: u16 = match &args.as_ref().expect("Args is None").command {
+            ArcCommand::PortForward{ port: Some(port), .. } => *port,
+            _ => find_available_port().await.expect("Failed to find an available port"),
+        };
 
         // Find one of the given service's pods
         let pod = get_service_pod(&service.name, cluster, &client).await;
@@ -213,6 +216,16 @@ async fn get_selector_label(service_name: &str, cluster: &EksCluster, client: &C
         .map(|(k, v)| format!("{}={}", k, v))
         .collect::<Vec<_>>()
         .join(",")
+}
+
+async fn find_available_port() -> Result<u16, std::io::Error> {
+    // Bind to port 0, which lets the OS assign an available port
+    let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
+    let port = listener.local_addr()?.port();
+
+    // Drop the listener to free the port
+    drop(listener);
+    Ok(port)
 }
 
 async fn port_forward(

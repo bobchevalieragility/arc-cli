@@ -26,6 +26,9 @@ enum ArcCommand {
     PortForward {
         #[arg(short, long)]
         service: Option<String>,
+
+        #[arg(short, long, help = "Local port (defaults to random, unused port)")]
+        port: Option<u16>,
     },
     Switch {
         #[arg(short, long)]
