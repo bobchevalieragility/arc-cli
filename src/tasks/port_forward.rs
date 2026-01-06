@@ -10,6 +10,7 @@ use k8s_openapi::api::core::v1::{Pod, Service, ServiceSpec};
 use tokio::task::AbortHandle;
 use crate::{ArcCommand, Args, Goal, GoalStatus};
 use crate::aws::eks_cluster::EksCluster;
+use crate::aws::kube_service::KubeService;
 use crate::tasks::{sleep_indicator, Task, TaskResult, TaskType};
 
 #[derive(Debug)]
@@ -24,7 +25,6 @@ impl Task for PortForwardTask {
             return GoalStatus::Needs(context_goal);
         }
 
-        //TODO add service name to intro
         intro("Port Forward").unwrap();
 
         // Retrieve info about the desired Kube context from state
@@ -54,10 +54,7 @@ impl Task for PortForwardTask {
         // Determine which service to port-forward to, prompting user if necessary
         let service = match &args.as_ref().expect("Args is None").command {
             ArcCommand::PortForward{ service: Some(name), .. } => {
-                ServiceInfo {
-                    name: name.clone(),
-                    port: get_service_port(&service_api, name).await,
-                }
+                KubeService::new(name.clone(), get_service_port(&service_api, name).await)
             },
             _ => {
                 let app_services = get_app_services(&service_api).await;
@@ -106,18 +103,20 @@ impl Task for PortForwardTask {
             let _ = outro_note(style(prompt).blue(), summary);
         }
 
-        GoalStatus::Completed(TaskResult::PortForward(PortForwardInfo::new(local_port, handle)))
+        let info = PortForwardInfo::new(service.clone(), local_port, handle.clone());
+        GoalStatus::Completed(TaskResult::PortForward(info))
     }
 }
 
 pub struct PortForwardInfo {
+    pub service: KubeService,
     pub local_port: u16,
     pub handle: AbortHandle,
 }
 
 impl PortForwardInfo {
-    pub fn new(local_port: u16, handle: AbortHandle) -> PortForwardInfo {
-        PortForwardInfo { local_port, handle }
+    pub fn new(service: KubeService, local_port: u16, handle: AbortHandle) -> PortForwardInfo {
+        PortForwardInfo { service, local_port, handle }
     }
 }
 
@@ -128,13 +127,7 @@ impl Drop for PortForwardInfo {
     }
 }
 
-#[derive(Clone)]
-struct ServiceInfo {
-    name: String,
-    port: u16,
-}
-
-async fn get_app_services(service_api: &Api<Service>) -> Vec<ServiceInfo> {
+async fn get_app_services(service_api: &Api<Service>) -> Vec<KubeService> {
     // Retrieve ALL services for the given namespace
     let list_params = ListParams::default();
     let svc_list = service_api.list(&list_params).await
@@ -149,11 +142,11 @@ async fn get_app_services(service_api: &Api<Service>) -> Vec<ServiceInfo> {
         }).map(|svc| {
             let name = svc.metadata.name.unwrap();
             let port = extract_port(svc.spec);
-            ServiceInfo { name, port }
+            KubeService::new(name, port)
         }).collect()
 }
 
-fn prompt_for_service(available_services: &Vec<ServiceInfo>) -> ServiceInfo {
+fn prompt_for_service(available_services: &Vec<KubeService>) -> KubeService {
     let mut menu = select("Which service would you like to port-forward to?");
     for svc in available_services {
         menu = menu.item(&svc.name, &svc.name, "");

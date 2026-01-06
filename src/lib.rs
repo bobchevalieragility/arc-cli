@@ -5,6 +5,7 @@ use std::convert::From;
 use std::collections::HashMap;
 use clap::{Parser, Subcommand};
 use crate::tasks::{TaskResult, TaskType};
+use crate::tasks::set_log_level::Level;
 
 #[derive(Parser, Clone, Debug, PartialEq, Eq, Hash)]
 #[command(author, version, about = "CLI Tool for Arc Backend")]
@@ -27,11 +28,14 @@ enum ArcCommand {
         #[arg(short, long, help = "Service name, e.g. 'metrics' (if omitted, will prompt)")]
         service: Option<String>,
 
+        #[arg(short, long, default_value = "ROOT", help = "Package, e.g. 'com.agilityrobotics.metrics' (defaults to ROOT)")]
+        package: String,
+
         #[arg(short, long, help = "Desired log level (if omitted, will prompt)")]
-        set: Option<String>,
+        level: Option<Level>,
 
         #[arg(short, long, help = "Just print the current log level")]
-        get: bool,
+        display_only: bool,
     },
     #[command(about = "Launch pgcli to interact with a Postgres RDS instance")]
     Pgcli,
@@ -115,6 +119,7 @@ impl From<TaskType> for Goal {
     fn from(task_type: TaskType) -> Self {
         match task_type {
             TaskType::LoginToVault => Goal::new(TaskType::LoginToVault, None),
+            TaskType::SelectActuatorService => Goal::new(TaskType::SelectActuatorService, None),
             TaskType::SelectAwsProfile => Goal::new(TaskType::SelectAwsProfile, Some(Args {
                 command: ArcCommand::Switch {
                     aws_profile: true,

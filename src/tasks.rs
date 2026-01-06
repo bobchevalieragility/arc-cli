@@ -4,6 +4,7 @@ pub mod launch_influx;
 pub mod login_to_vault;
 pub mod port_forward;
 pub mod run_pgcli;
+pub mod select_actuator_service;
 pub mod select_aws_profile;
 pub mod select_influx_instance;
 pub mod select_kube_context;
@@ -23,6 +24,7 @@ use crate::tasks::launch_influx::LaunchInfluxTask;
 use crate::tasks::login_to_vault::LoginToVaultTask;
 use crate::tasks::port_forward::{PortForwardInfo, PortForwardTask};
 use crate::tasks::run_pgcli::RunPgcliTask;
+use crate::tasks::select_actuator_service::{ActuatorService, SelectActuatorServiceTask};
 use crate::tasks::select_aws_profile::{AwsProfileInfo, SelectAwsProfileTask};
 use crate::tasks::select_influx_instance::SelectInfluxInstanceTask;
 use crate::tasks::select_kube_context::{KubeContextInfo, SelectKubeContextTask};
@@ -43,6 +45,7 @@ pub enum TaskType {
     LoginToVault,
     PortForward,
     RunPgcli,
+    SelectActuatorService,
     SelectAwsProfile,
     SelectInfluxInstance,
     SelectKubeContext,
@@ -59,6 +62,7 @@ impl TaskType {
             TaskType::LoginToVault => Box::new(LoginToVaultTask),
             TaskType::PortForward => Box::new(PortForwardTask),
             TaskType::RunPgcli => Box::new(RunPgcliTask),
+            TaskType::SelectActuatorService => Box::new(SelectActuatorServiceTask),
             TaskType::SelectAwsProfile => Box::new(SelectAwsProfileTask),
             TaskType::SelectInfluxInstance => Box::new(SelectInfluxInstanceTask),
             TaskType::SelectKubeContext => Box::new(SelectKubeContextTask),
@@ -69,6 +73,7 @@ impl TaskType {
 }
 
 pub enum TaskResult {
+    ActuatorService(ActuatorService),
     AwsProfile{ existing: Option<AwsProfileInfo>, updated: Option<AwsProfileInfo> },
     AwsSecret(String),
     InfluxCommand,
