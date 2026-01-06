@@ -220,7 +220,11 @@ async fn execute_goals(terminal_goals: Vec<Goal>) {
                         },
                         OutroMessage { prompt: None, message } => {
                             let colored_msg = color_output(&message, *is_terminal_goal);
-                            let _ = outro(&colored_msg);
+                            if *is_terminal_goal {
+                                let _ = outro(&colored_msg);
+                            } else {
+                                let _ = cliclack::log::info(&colored_msg);
+                            }
                         },
                     }
                 }
