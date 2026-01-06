@@ -2,7 +2,7 @@ mod aws;
 mod tasks;
 
 use std::convert::From;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use clap::{Parser, Subcommand};
 use crate::tasks::{TaskResult, TaskType};
 use crate::tasks::set_log_level::Level;
@@ -72,46 +72,51 @@ impl Args {
     fn to_goals(&self) -> Vec<Goal> {
         match self.command {
             ArcCommand::AwsSecret { .. } => vec![
-                Goal::new(TaskType::GetAwsSecret, Some(self.clone()))
+                Goal::new_terminal(TaskType::GetAwsSecret, Some(self.clone()))
             ],
             ArcCommand::LogLevel { .. } => vec![
-                Goal::new(TaskType::SetLogLevel, Some(self.clone()))
+                Goal::new_terminal(TaskType::SetLogLevel, Some(self.clone()))
             ],
             ArcCommand::Pgcli => vec![
-                Goal::new(TaskType::RunPgcli, Some(self.clone()))
+                Goal::new_terminal(TaskType::RunPgcli, Some(self.clone()))
             ],
             ArcCommand::PortForward { .. } => vec![
-                Goal::new(TaskType::PortForward, Some(self.clone()))
+                Goal::new_terminal(TaskType::PortForward, Some(self.clone()))
             ],
             ArcCommand::Influx => vec![
-                Goal::new(TaskType::LaunchInflux, Some(self.clone()))
+                Goal::new_terminal(TaskType::LaunchInflux, Some(self.clone()))
             ],
             ArcCommand::Switch { aws_profile: true, .. } => vec![
-                Goal::new(TaskType::SelectAwsProfile, Some(self.clone()))
+                Goal::new_terminal(TaskType::SelectAwsProfile, Some(self.clone()))
             ],
             ArcCommand::Switch { kube_context: true, .. } => vec![
-                Goal::new(TaskType::SelectKubeContext, Some(self.clone()))
+                Goal::new_terminal(TaskType::SelectKubeContext, Some(self.clone()))
             ],
             ArcCommand::Switch { aws_profile: false, kube_context: false, .. } => vec![
-                Goal::new(TaskType::SelectKubeContext, Some(self.clone())),
-                Goal::new(TaskType::SelectAwsProfile, Some(self.clone()))
+                Goal::new_terminal(TaskType::SelectKubeContext, Some(self.clone())),
+                Goal::new_terminal(TaskType::SelectAwsProfile, Some(self.clone()))
             ],
             ArcCommand::Vault { .. } => vec![
-                Goal::new(TaskType::GetVaultSecret, Some(self.clone()))
+                Goal::new_terminal(TaskType::GetVaultSecret, Some(self.clone()))
             ],
         }
     }
 }
 
+//TODO move Goal into it's own module to force callers to use the Goal::new or Goal::new_terminal constructors
 #[derive(Clone, PartialEq, Eq, Hash)]
 struct Goal {
     task_type: TaskType,
     args: Option<Args>,
+    is_terminal_goal: bool,
 }
 
 impl Goal {
     fn new(task_type: TaskType, args: Option<Args>) -> Self {
-        Goal { task_type, args }
+        Goal { task_type, args, is_terminal_goal: false }
+    }
+    fn new_terminal(task_type: TaskType, args: Option<Args>) -> Self {
+        Goal { task_type, args, is_terminal_goal: true }
     }
 }
 
@@ -159,9 +164,10 @@ async fn execute_goals(terminal_goals: Vec<Goal>) {
     let mut goals = terminal_goals.clone();
     let mut eval_string = String::new();
     let mut state: HashMap<Goal, TaskResult> = HashMap::new();
+    let mut intros: HashSet<Goal> = HashSet::new();
 
     // Process goals until there are none left, peeking and processing before popping
-    while let Some(Goal { task_type, args }) = goals.last() {
+    while let Some(Goal { task_type, args, is_terminal_goal }) = goals.last() {
         // Check to see if the goal has already been completed. While unlikely,
         // it's possible if multiple goals depend on the same sub-goal.
         if state.contains_key(&goals.last().unwrap()) {
@@ -169,11 +175,17 @@ async fn execute_goals(terminal_goals: Vec<Goal>) {
             continue;
         }
 
+        // Instantiate a task for the current goal
+        let task = task_type.to_task();
+
         // Determine if this is one of the original, user-requested goals
-        let is_terminal_goal = terminal_goals.contains(goals.last().as_ref().unwrap());
+        if *is_terminal_goal && !intros.contains(&goals.last().unwrap()) {
+            task.print_intro();
+            intros.insert(goals.last().unwrap().clone());
+        }
 
         // Attempt to complete the next goal on the stack
-        let goal_result = task_type.to_task().execute(args, &state, is_terminal_goal).await;
+        let goal_result = task_type.to_task().execute(args, &state, *is_terminal_goal).await;
 
         // If next goal indicates that it needs the result of a dependent goal, then add the
         // dependent goal onto the stack, leaving the original goal to be executed at a later time.

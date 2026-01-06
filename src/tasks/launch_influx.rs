@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use cliclack::{outro_note};
+use cliclack::{intro, outro_note};
 use console::style;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -12,6 +12,10 @@ pub struct LaunchInfluxTask;
 
 #[async_trait]
 impl Task for LaunchInfluxTask {
+    fn print_intro(&self) {
+        let _ = intro("Launch Influx UI");
+    }
+
     async fn execute(&self, _args: &Option<Args>, state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
         // If an Influx instance has not yet been selected, we need to wait for that goal to complete
         let influx_selection_goal = Goal::from(TaskType::SelectInfluxInstance);

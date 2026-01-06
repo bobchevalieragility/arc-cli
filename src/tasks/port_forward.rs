@@ -18,14 +18,16 @@ pub struct PortForwardTask;
 
 #[async_trait]
 impl Task for PortForwardTask {
+    fn print_intro(&self) {
+        let _ = intro("Port Forward");
+    }
+
     async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
         // If Kube context has not been selected, we need to wait for that goal to complete
         let context_goal = Goal::from(TaskType::SelectKubeContext);
         if !state.contains_key(&context_goal) {
             return GoalStatus::Needs(context_goal);
         }
-
-        intro("Port Forward").unwrap();
 
         // Retrieve info about the desired Kube context from state
         let context_result = state.get(&context_goal)

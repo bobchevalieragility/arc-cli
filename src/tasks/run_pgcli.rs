@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use std::collections::HashMap;
+use cliclack::intro;
 use serde_json::Value;
 use crate::{ArcCommand, Args, Goal, GoalStatus};
 use crate::tasks::{Task, TaskResult, TaskType};
@@ -10,6 +11,10 @@ pub struct RunPgcliTask;
 
 #[async_trait]
 impl Task for RunPgcliTask {
+    fn print_intro(&self) {
+        let _ = intro("Run pgcli");
+    }
+
     async fn execute(&self, _args: &Option<Args>, state: &HashMap<Goal, TaskResult>, _is_terminal_goal: bool) -> GoalStatus {
         // If an RDS instance has not yet been selected, we need to wait for that goal to complete
         let rds_selection_goal = Goal::from(TaskType::SelectRdsInstance);

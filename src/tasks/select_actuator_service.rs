@@ -9,9 +9,11 @@ pub struct SelectActuatorServiceTask;
 
 #[async_trait]
 impl Task for SelectActuatorServiceTask {
-    async fn execute(&self, _args: &Option<Args>, state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
-        intro("Service selector").unwrap();
+    fn print_intro(&self) {
+        let _ = intro("Select Actuator Service");
+    }
 
+    async fn execute(&self, _args: &Option<Args>, state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
         // Prompt user to select a service that supports actuator functionality
         let service = prompt_for_service();
 

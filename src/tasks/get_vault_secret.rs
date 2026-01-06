@@ -13,6 +13,10 @@ pub struct GetVaultSecretTask;
 
 #[async_trait]
 impl Task for GetVaultSecretTask {
+    fn print_intro(&self) {
+        let _ = intro("Get Vault Secret");
+    }
+
     async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
         // If AWS profile info is not available, we need to wait for that goal to complete
         let profile_goal = Goal::from(TaskType::SelectAwsProfile);
@@ -27,8 +31,6 @@ impl Task for GetVaultSecretTask {
         if !state.contains_key(&login_goal) {
             return GoalStatus::Needs(login_goal);
         }
-
-        intro("Vault Secret Retriever").unwrap();
 
         // Retrieve info about the desired AWS profile from state
         let aws_profile_result = state.get(&profile_goal)

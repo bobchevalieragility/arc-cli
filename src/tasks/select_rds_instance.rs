@@ -10,14 +10,16 @@ pub struct SelectRdsInstanceTask;
 
 #[async_trait]
 impl Task for SelectRdsInstanceTask {
+    fn print_intro(&self) {
+        let _ = intro("Select RDS Instance");
+    }
+
     async fn execute(&self, _args: &Option<Args>, state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
         // If AWS profile info is not available, we need to wait for that goal to complete
         let profile_goal = Goal::from(TaskType::SelectAwsProfile);
         if !state.contains_key(&profile_goal) {
             return GoalStatus::Needs(profile_goal);
         }
-
-        intro("RDS instance selector").unwrap();
 
         // Retrieve the desired AWS account ID from state
         let aws_profile_result = state.get(&profile_goal)

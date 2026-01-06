@@ -13,6 +13,10 @@ pub struct SelectKubeContextTask;
 
 #[async_trait]
 impl Task for SelectKubeContextTask {
+    fn print_intro(&self) {
+        let _ = intro("Select Kube Context");
+    }
+
     async fn execute(&self, args: &Option<Args>, _state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
         if let ArcCommand::Switch{ use_current: true, .. } = &args.as_ref().expect("Args is None").command {
             if let Ok(current_kubeconfig) = env::var("KUBECONFIG") {
@@ -35,7 +39,6 @@ impl Task for SelectKubeContextTask {
             .expect("Could not read kube config from default path.");
 
         // Prompt user to select a kubernetes context
-        intro("Kube Context Selector").unwrap();
         let selected_kube_context = prompt_for_kube_context(&config);
 
         // Find the cluster associated with the selected context

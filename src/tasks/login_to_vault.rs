@@ -16,14 +16,16 @@ pub struct LoginToVaultTask;
 
 #[async_trait]
 impl Task for LoginToVaultTask {
+    fn print_intro(&self) {
+        let _ = intro("Login to Vault");
+    }
+
     async fn execute(&self, _args: &Option<Args>, state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
         // If AWS profile info is not available, we need to wait for that goal to complete
         let profile_goal = Goal::from(TaskType::SelectAwsProfile);
         if !state.contains_key(&profile_goal) {
             return GoalStatus::Needs(profile_goal);
         }
-
-        intro("Authenticate to Vault").unwrap();
 
         // Retrieve info about the desired AWS profile from state
         let aws_profile_result = state.get(&profile_goal)

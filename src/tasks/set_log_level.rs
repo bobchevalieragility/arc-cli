@@ -13,6 +13,10 @@ pub struct SetLogLevelTask;
 
 #[async_trait]
 impl Task for SetLogLevelTask {
+    fn print_intro(&self) {
+        let _ = intro("Log Level");
+    }
+
     async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
         // If a service has not yet been selected, we need to wait for that goal to complete
         let svc_selection_goal = Goal::from(TaskType::SelectActuatorService);
@@ -43,8 +47,6 @@ impl Task for SetLogLevelTask {
             TaskResult::PortForward(info) => info,
             _ => panic!("Expected TaskResult::PortForward"),
         };
-
-        intro("Log Level Selector").unwrap();
 
         // Extract parameters from args
         let (package, display_only) = match &args.as_ref().expect("Args is None").command {

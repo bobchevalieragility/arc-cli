@@ -15,6 +15,10 @@ pub struct SelectAwsProfileTask;
 
 #[async_trait]
 impl Task for SelectAwsProfileTask {
+    fn print_intro(&self) {
+        let _ = intro("Select AWS Profile");
+    }
+
     async fn execute(&self, args: &Option<Args>, _state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
         if let ArcCommand::Switch{ use_current: true, .. } = &args.as_ref().expect("Args is None").command {
             // User wants to use current AWS_PROFILE, if it's already set
@@ -27,7 +31,6 @@ impl Task for SelectAwsProfileTask {
         }
 
         // Prompt user to select an AWS profile
-        intro("AWS Profile Selector").unwrap();
         let selected_aws_profile = prompt_for_aws_profile().await;
         let account_id = get_aws_account(&selected_aws_profile).await;
         outro(format!("AWS profile: {}", color_output(&selected_aws_profile, is_terminal_goal))).unwrap();

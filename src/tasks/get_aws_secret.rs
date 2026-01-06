@@ -13,14 +13,16 @@ pub struct GetAwsSecretTask;
 
 #[async_trait]
 impl Task for GetAwsSecretTask {
+    fn print_intro(&self) {
+        let _ = intro("Get AWS Secret");
+    }
+
     async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
         // If AWS profile info is not available, we need to wait for that goal to complete
         let profile_goal = Goal::from(TaskType::SelectAwsProfile);
         if !state.contains_key(&profile_goal) {
             return GoalStatus::Needs(profile_goal);
         }
-
-        intro("AWS Secret Retriever").unwrap();
 
         // Retrieve info about the desired AWS profile from state
         let aws_profile_result = state.get(&profile_goal)
