@@ -1,12 +1,12 @@
 use async_trait::async_trait;
 use kube::{Api, Client};
 use kube::api::ListParams;
-use cliclack::{intro, note, outro_note, select, spinner};
+use cliclack::{intro, select, spinner};
 use std::collections::HashMap;
-use console::style;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use k8s_openapi::api::core::v1::{Pod, Service, ServiceSpec};
+use kube::config::Kubeconfig;
 use tokio::task::AbortHandle;
 use crate::{ArcCommand, Args, Goal, GoalStatus, OutroMessage};
 use crate::aws::eks_cluster::EksCluster;
@@ -43,12 +43,13 @@ impl Task for PortForwardTask {
         // Get the cluster that corresponds to the selected context
         let cluster = &context_info.cluster;
 
-        // If a Kube context has been selected, then the KUBECONFIG env
-        // var will be set so we can proceed to create a Kube client
+        // Create a Kubernetes client using the KUBECONFIG path from state
         let spinner = spinner();
         spinner.start("Creating Kubernetes client...");
-        let client = Client::try_default().await
-            .expect("Could not get default client");
+        let kubeconfig = Kubeconfig::read_from(&context_info.kubeconfig)
+            .expect("Unable to read Kubeconfig");
+        let client = Client::try_from(kubeconfig)
+            .expect("Could not create Kubernetes client");
         spinner.stop("Kubernetes client created");
 
         let service_api: Api<Service> = Api::namespaced(client.clone(), &cluster.namespace());
