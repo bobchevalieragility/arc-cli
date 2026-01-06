@@ -1,7 +1,8 @@
 use async_trait::async_trait;
-use cliclack::{intro, outro_note};
+use cliclack::{intro, outro_note, select};
 use std::collections::HashMap;
 use clap::ValueEnum;
+use serde_json::Value;
 use crate::{ArcCommand, Args, Goal, GoalStatus};
 use crate::tasks::{color_output, Task, TaskResult, TaskType};
 use crate::tasks::port_forward::PortForwardInfo;
@@ -56,8 +57,12 @@ impl Task for SetLogLevelTask {
             display_log_level(package, port_fwd_info, is_terminal_goal).await;
         } else {
             // We want to change the log level
-            println!("Changing log level...");
-            //TODO: Implement changing log level
+            let level = match &args.as_ref().expect("Args is None").command {
+                ArcCommand::LogLevel{ level: Some(level), .. } => level.clone(),
+                _ => prompt_for_log_level(),
+            };
+
+            set_log_level(package, port_fwd_info, &level, is_terminal_goal).await;
         }
 
         GoalStatus::Completed(TaskResult::LogLevel)
@@ -92,6 +97,52 @@ async fn display_log_level(package: &str, port_fwd_info: &PortForwardInfo, is_te
     }
 }
 
+async fn set_log_level(package: &str, port_fwd_info: &PortForwardInfo, level: &Level, is_terminal_goal: bool) {
+    // Make HTTP POST request to the actuator/loggers endpoint
+    let url = format!(
+        "http://localhost:{}/actuator/loggers/{}",
+        port_fwd_info.local_port,
+        package
+    );
+
+    // Create JSON body with configuredLevel
+    let body = serde_json::json!({
+        "configuredLevel": level.value()
+    });
+
+    let http_client = reqwest::Client::new();
+    match http_client.post(&url)
+        .json(&body)
+        .send()
+        .await
+    {
+        Ok(response) => {
+            if response.status().is_success() {
+                let prompt = format!("{} log level", package);
+                let _ = outro_note(
+                    color_output(&prompt, is_terminal_goal),
+                    format!("Set to {}", level.name())
+                );
+            } else {
+                eprintln!("Failed to set log level: HTTP {}", response.status());
+            }
+        },
+        Err(e) => eprintln!("HTTP request failed: {}", e),
+    }
+}
+
+fn prompt_for_log_level() -> Level {
+    let available_levels = Level::all();
+
+    let mut menu = select("Select desired log level");
+    for level in &available_levels {
+        menu = menu.item(level.name(), level.name(), "");
+    }
+
+    let selected_level = menu.interact().unwrap();
+    Level::from(selected_level)
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash, ValueEnum)]
 pub enum Level {
     Trace,
@@ -101,4 +152,57 @@ pub enum Level {
     Error,
     Off,
     Inherit,
+}
+
+impl Level {
+    pub fn name(&self) -> &str {
+        match self {
+            Level::Trace => "TRACE",
+            Level::Debug => "DEBUG",
+            Level::Info => "INFO",
+            Level::Warn => "WARN",
+            Level::Error => "ERROR",
+            Level::Off => "OFF",
+            Level::Inherit => "INHERIT",
+        }
+    }
+
+    pub fn value(&self) -> Value {
+        match self {
+            Level::Trace => Value::String("trace".to_string()),
+            Level::Debug => Value::String("debug".to_string()),
+            Level::Info => Value::String("info".to_string()),
+            Level::Warn => Value::String("warn".to_string()),
+            Level::Error => Value::String("error".to_string()),
+            Level::Off => Value::String("off".to_string()),
+            Level::Inherit => Value::Null,
+        }
+    }
+
+    fn all() -> Vec<Level> {
+        vec![
+            Level::Trace,
+            Level::Debug,
+            Level::Info,
+            Level::Warn,
+            Level::Error,
+            Level::Off,
+            Level::Inherit,
+        ]
+    }
+}
+
+impl From<&str> for Level {
+    fn from(level_name: &str) -> Self {
+        match level_name {
+            "TRACE" => Level::Trace,
+            "DEBUG" => Level::Debug,
+            "INFO" => Level::Info,
+            "WARN" => Level::Warn,
+            "ERROR" => Level::Error,
+            "OFF" => Level::Off,
+            "INHERIT" => Level::Inherit,
+            _ => panic!("Unknown log Level: {level_name}"),
+        }
+    }
 }
