@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use cliclack::intro;
-use console::style;
 use serde_json::Value;
 use std::collections::HashMap;
 use crate::{ArcCommand, Args, Goal, GoalStatus, OutroMessage};
@@ -16,7 +15,7 @@ impl Task for LaunchInfluxTask {
         let _ = intro("Launch Influx UI");
     }
 
-    async fn execute(&self, _args: &Option<Args>, state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
+    async fn execute(&self, _args: &Option<Args>, state: &HashMap<Goal, TaskResult>, _is_terminal_goal: bool) -> GoalStatus {
         // If an Influx instance has not yet been selected, we need to wait for that goal to complete
         let influx_selection_goal = Goal::from(TaskType::SelectInfluxInstance);
         if !state.contains_key(&influx_selection_goal) {

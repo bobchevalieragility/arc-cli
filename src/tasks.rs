@@ -14,11 +14,8 @@ pub mod set_log_level;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use cliclack::progress_bar;
-use console::{style, StyledObject};
-use tokio::task::AbortHandle;
-use crate::{Args, Goal, GoalStatus, OutroMessage};
+use crate::{Args, Goal, GoalStatus};
 use crate::aws::influx::InfluxInstance;
-use crate::aws::kube_service::KubeService;
 use crate::aws::rds::RdsInstance;
 use crate::tasks::get_aws_secret::GetAwsSecretTask;
 use crate::tasks::get_vault_secret::GetVaultSecretTask;
@@ -32,7 +29,6 @@ use crate::tasks::select_influx_instance::SelectInfluxInstanceTask;
 use crate::tasks::select_kube_context::{KubeContextInfo, SelectKubeContextTask};
 use crate::tasks::select_rds_instance::SelectRdsInstanceTask;
 use crate::tasks::set_log_level::SetLogLevelTask;
-use crate::tasks::TaskType::SetLogLevel;
 
 #[async_trait]
 pub trait Task: Send + Sync {
@@ -87,7 +83,7 @@ pub enum TaskResult {
     PgcliCommand(String),
     PortForward(PortForwardInfo),
     RdsInstance(RdsInstance),
-    VaultSecret(String),
+    VaultSecret,
     VaultToken(String),
 }
 

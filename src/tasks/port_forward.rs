@@ -1,14 +1,15 @@
 use async_trait::async_trait;
 use kube::{Api, Client};
 use kube::api::ListParams;
-use cliclack::{intro, select, spinner};
+use cliclack::{intro, outro_note, select, spinner};
 use std::collections::HashMap;
+use console::style;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use k8s_openapi::api::core::v1::{Pod, Service, ServiceSpec};
 use kube::config::Kubeconfig;
 use tokio::task::AbortHandle;
-use crate::{ArcCommand, Args, Goal, GoalStatus, OutroMessage};
+use crate::{ArcCommand, Args, Goal, GoalStatus};
 use crate::aws::eks_cluster::EksCluster;
 use crate::aws::kube_service::KubeService;
 use crate::tasks::{sleep_indicator, Task, TaskResult, TaskType};
@@ -87,37 +88,35 @@ impl Task for PortForwardTask {
         let handle = port_forward_handle.abort_handle();
 
         // Give port-forward time to establish with a progress indicator
-        sleep_indicator(
-            2,
-            "Establishing port-forward...",
-            "Port-Forward established"
-        ).await;
-
-        // Set outro message content
-        let outro_prompt = format!("Port-Forwarding to {} service", service.name);
-        let mut outro_message = format!("Listening on 127.0.0.1:{}", local_port);
+        let end_msg = format!(
+            "Service({}) listening on 127.0.0.1:{}",
+            style(&service.name).dim(),
+            style(local_port).dim()
+        );
+        sleep_indicator(2, "Establishing port-forward...", &end_msg).await;
 
         if is_terminal_goal {
+            let prompt = format!("Port-Forwarding to {} service", service.name);
+            let msg = format!("Listening on 127.0.0.1:{}\nPress Ctrl+X to terminate", local_port);
+            let _ = outro_note(style(prompt).green(), msg);
+
             // Assume user wants to keep port-forward open until manually closed
-            outro_message.push_str("\nPress Ctrl+X to terminate");
             let _ = port_forward_handle.await;
         }
 
-        let info = PortForwardInfo::new(service.clone(), local_port, handle.clone());
-        let outro_msg = OutroMessage::new(Some(outro_prompt), outro_message);
-        GoalStatus::Completed(TaskResult::PortForward(info), Some(outro_msg))
+        let info = PortForwardInfo::new(local_port, handle.clone());
+        GoalStatus::Completed(TaskResult::PortForward(info), None)
     }
 }
 
 pub struct PortForwardInfo {
-    pub service: KubeService,
     pub local_port: u16,
     pub handle: AbortHandle,
 }
 
 impl PortForwardInfo {
-    pub fn new(service: KubeService, local_port: u16, handle: AbortHandle) -> PortForwardInfo {
-        PortForwardInfo { service, local_port, handle }
+    pub fn new(local_port: u16, handle: AbortHandle) -> PortForwardInfo {
+        PortForwardInfo { local_port, handle }
     }
 }
 
@@ -148,7 +147,7 @@ async fn get_app_services(service_api: &Api<Service>) -> Vec<KubeService> {
 }
 
 fn prompt_for_service(available_services: &Vec<KubeService>) -> KubeService {
-    let mut menu = select("Which service would you like to port-forward to?");
+    let mut menu = select("Select a service for port-forwarding");
     for svc in available_services {
         menu = menu.item(&svc.name, &svc.name, "");
     }
@@ -233,16 +232,15 @@ async fn port_forward(
 
     // Bind local TCP listener
     let listener = TcpListener::bind(("127.0.0.1", local_port)).await?;
-    // println!("Listening on 127.0.0.1:{}", local_port);
 
     loop {
-        let (mut local_stream, _) = listener.accept().await?;
+        let (local_stream, _) = listener.accept().await?;
         let pod_api = pod_api.clone();
         let pod_name = pod_name.to_string();
 
         tokio::spawn(async move {
             // Create port-forward connection to the pod
-            let mut port_forward_stream = match pod_api
+            let port_forward_stream = match pod_api
                 .portforward(&pod_name, &[pod_port])
                 .await
             {

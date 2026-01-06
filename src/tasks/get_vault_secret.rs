@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use cliclack::{intro, outro_note, select};
+use cliclack::{intro, select};
 use std::collections::HashMap;
 use vaultrs::client::VaultClient;
 use vaultrs::kv2;
@@ -17,7 +17,7 @@ impl Task for GetVaultSecretTask {
         let _ = intro("Get Vault Secret");
     }
 
-    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
+    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>, _is_terminal_goal: bool) -> GoalStatus {
         // If AWS profile info is not available, we need to wait for that goal to complete
         let profile_goal = Goal::from(TaskType::SelectAwsProfile);
         if !state.contains_key(&profile_goal) {
@@ -74,7 +74,7 @@ impl Task for GetVaultSecretTask {
             .await.expect("Unable to read Vault secret");
 
         // Optionally extract a specific field from the secret and format for display
-        let (result, outro_msg) = match &args.command {
+        let (_, outro_msg) = match &args.command {
             ArcCommand::Vault{ field: Some(f), .. } => {
                 // Extract specific field
                 let secret_field = match secrets.get(f) {
@@ -98,7 +98,7 @@ impl Task for GetVaultSecretTask {
             },
         };
 
-        GoalStatus::Completed(TaskResult::VaultSecret(result), Some(outro_msg))
+        GoalStatus::Completed(TaskResult::VaultSecret, Some(outro_msg))
     }
 }
 

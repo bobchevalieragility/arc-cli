@@ -5,7 +5,6 @@ use clap::ValueEnum;
 use serde_json::Value;
 use crate::{ArcCommand, Args, Goal, GoalStatus, OutroMessage};
 use crate::tasks::{Task, TaskResult, TaskType};
-use crate::tasks::port_forward::PortForwardInfo;
 use crate::tasks::TaskType::PortForward;
 
 #[derive(Debug)]
@@ -17,7 +16,7 @@ impl Task for SetLogLevelTask {
         let _ = intro("Log Level");
     }
 
-    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
+    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>, _is_terminal_goal: bool) -> GoalStatus {
         // If a service has not yet been selected, we need to wait for that goal to complete
         let svc_selection_goal = Goal::from(TaskType::SelectActuatorService);
         if !state.contains_key(&svc_selection_goal) {
@@ -80,7 +79,7 @@ async fn display_log_level(package: &str, local_port: u16) -> Option<OutroMessag
         Ok(response) => {
             match response.text().await {
                 Ok(body) => {
-                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
+                    if let Ok(json) = serde_json::from_str::<Value>(&body) {
                         let msg = serde_json::to_string_pretty(&json).unwrap();
                         return Some(OutroMessage::new(Some(format!("{} log level", package)), msg))
                     }
