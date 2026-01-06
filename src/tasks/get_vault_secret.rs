@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use vaultrs::client::VaultClient;
 use vaultrs::kv2;
 
-use crate::{ArcCommand, Args, Goal, GoalStatus};
-use crate::tasks::{color_output, Task, TaskResult, TaskType};
+use crate::{ArcCommand, Args, Goal, GoalStatus, OutroMessage};
+use crate::tasks::{Task, TaskResult, TaskType};
 use crate::aws::vault;
 
 #[derive(Debug)]
@@ -74,7 +74,7 @@ impl Task for GetVaultSecretTask {
             .await.expect("Unable to read Vault secret");
 
         // Optionally extract a specific field from the secret and format for display
-        let result = match &args.command {
+        let (result, outro_msg) = match &args.command {
             ArcCommand::Vault{ field: Some(f), .. } => {
                 // Extract specific field
                 let secret_field = match secrets.get(f) {
@@ -83,8 +83,8 @@ impl Task for GetVaultSecretTask {
                         panic!("Field '{}' not found in secret at path '{}'", f, secret_path);
                     }
                 };
-                outro_note(color_output(f, is_terminal_goal), &secret_field).unwrap();
-                secret_field
+                let outro_msg = OutroMessage::new(Some(f.clone()), secret_field.clone());
+                (secret_field, outro_msg)
             },
             _ => {
                 // Concatenate k: v pairs into a single, newline-delimited string
@@ -92,12 +92,13 @@ impl Task for GetVaultSecretTask {
                     .map(|(k, v)| format!("{}: {}", k, v))
                     .collect::<Vec<String>>()
                     .join("\n");
-                outro_note(color_output("Secret", is_terminal_goal), &full_secret).unwrap();
-                full_secret
+                let prompt = "Secret Value".to_string();
+                let outro_msg = OutroMessage::new(Some(prompt), full_secret.clone());
+                (full_secret, outro_msg)
             },
         };
 
-        GoalStatus::Completed(TaskResult::VaultSecret(result))
+        GoalStatus::Completed(TaskResult::VaultSecret(result), Some(outro_msg))
     }
 }
 

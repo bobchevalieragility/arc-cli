@@ -15,8 +15,10 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use cliclack::progress_bar;
 use console::{style, StyledObject};
-use crate::{Args, Goal, GoalStatus};
+use tokio::task::AbortHandle;
+use crate::{Args, Goal, GoalStatus, OutroMessage};
 use crate::aws::influx::InfluxInstance;
+use crate::aws::kube_service::KubeService;
 use crate::aws::rds::RdsInstance;
 use crate::tasks::get_aws_secret::GetAwsSecretTask;
 use crate::tasks::get_vault_secret::GetVaultSecretTask;
@@ -75,6 +77,7 @@ impl TaskType {
 
 pub enum TaskResult {
     ActuatorService(ActuatorService),
+    //TODO just store a single AwsProfileInfo and indicate whether it was updated or not
     AwsProfile{ existing: Option<AwsProfileInfo>, updated: Option<AwsProfileInfo> },
     AwsSecret(String),
     InfluxCommand,
@@ -103,14 +106,6 @@ impl TaskResult {
             },
             _ => None,
         }
-    }
-}
-
-pub fn color_output(output: &str, is_terminal_goal: bool) -> StyledObject<&str> {
-    if is_terminal_goal {
-        style(output).green()
-    } else {
-        style(output).blue()
     }
 }
 

@@ -4,6 +4,8 @@ mod tasks;
 use std::convert::From;
 use std::collections::{HashMap, HashSet};
 use clap::{Parser, Subcommand};
+use cliclack::{note, outro, outro_note};
+use console::{style, StyledObject};
 use crate::tasks::{TaskResult, TaskType};
 use crate::tasks::set_log_level::Level;
 
@@ -156,9 +158,21 @@ pub async fn run(args: &Args) {
 }
 
 enum GoalStatus {
-    Completed(TaskResult),
+    Completed(TaskResult, Option<OutroMessage>),
     Needs(Goal),
 }
+
+struct OutroMessage {
+    prompt: Option<String>,
+    message: String,
+}
+
+impl OutroMessage {
+    pub fn new(prompt: Option<String>, message: String) -> OutroMessage {
+        OutroMessage { prompt, message }
+    }
+}
+
 
 async fn execute_goals(terminal_goals: Vec<Goal>) {
     let mut goals = terminal_goals.clone();
@@ -192,7 +206,25 @@ async fn execute_goals(terminal_goals: Vec<Goal>) {
         // Otherwise, pop the goal from the stack and store its result in the state.
         match goal_result {
             GoalStatus::Needs(dependent_goal) => goals.push(dependent_goal),
-            GoalStatus::Completed(result) => {
+            GoalStatus::Completed(result, optional_outro_msg) => {
+                if let Some(outro_msg) = optional_outro_msg {
+                    // Print outro message
+                    match outro_msg {
+                        OutroMessage { prompt: Some(prompt), message } => {
+                            let colored_prompt = color_output(&prompt, *is_terminal_goal);
+                            if *is_terminal_goal {
+                                let _ = outro_note(colored_prompt, message);
+                            } else {
+                                let _ = note(colored_prompt, message);
+                            }
+                        },
+                        OutroMessage { prompt: None, message } => {
+                            let colored_msg = color_output(&message, *is_terminal_goal);
+                            let _ = outro(&colored_msg);
+                        },
+                    }
+                }
+
                 // Collect any text that needs to be eval'd in the parent shell
                 if let Some(s) = result.eval_string() {
                     eval_string.push_str(&s);
@@ -208,3 +240,12 @@ async fn execute_goals(terminal_goals: Vec<Goal>) {
     // This is the final output that the parent shell should eval
     println!("{eval_string}");
 }
+
+pub fn color_output(output: &str, is_terminal_goal: bool) -> StyledObject<&str> {
+    if is_terminal_goal {
+        style(output).green()
+    } else {
+        style(output).blue()
+    }
+}
+

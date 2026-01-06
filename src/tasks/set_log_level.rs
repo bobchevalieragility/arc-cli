@@ -1,10 +1,10 @@
 use async_trait::async_trait;
-use cliclack::{intro, outro_note, select};
+use cliclack::{intro, select};
 use std::collections::HashMap;
 use clap::ValueEnum;
 use serde_json::Value;
-use crate::{ArcCommand, Args, Goal, GoalStatus};
-use crate::tasks::{color_output, Task, TaskResult, TaskType};
+use crate::{ArcCommand, Args, Goal, GoalStatus, OutroMessage};
+use crate::tasks::{Task, TaskResult, TaskType};
 use crate::tasks::port_forward::PortForwardInfo;
 use crate::tasks::TaskType::PortForward;
 
@@ -54,9 +54,9 @@ impl Task for SetLogLevelTask {
             _ => panic!("Expected ArcCommand::LogLevel"),
         };
 
-        if *display_only {
+        let outro_msg = if *display_only {
             // We only want to display the current log level
-            display_log_level(package, port_fwd_info, is_terminal_goal).await;
+            display_log_level(package, port_fwd_info.local_port).await
         } else {
             // We want to change the log level
             let level = match &args.as_ref().expect("Args is None").command {
@@ -64,20 +64,16 @@ impl Task for SetLogLevelTask {
                 _ => prompt_for_log_level(),
             };
 
-            set_log_level(package, port_fwd_info, &level, is_terminal_goal).await;
-        }
+            set_log_level(package, port_fwd_info.local_port, &level).await
+        };
 
-        GoalStatus::Completed(TaskResult::LogLevel)
+        GoalStatus::Completed(TaskResult::LogLevel, outro_msg)
     }
 }
 
-async fn display_log_level(package: &str, port_fwd_info: &PortForwardInfo, is_terminal_goal: bool) {
+async fn display_log_level(package: &str, local_port: u16) -> Option<OutroMessage> {
     // Make HTTP GET request to the actuator/loggers endpoint
-    let url = format!(
-        "http://localhost:{}/actuator/loggers/{}",
-        port_fwd_info.local_port,
-        package
-    );
+    let url = format!("http://localhost:{}/actuator/loggers/{}", local_port, package);
 
     let http_client = reqwest::Client::new();
     match http_client.get(&url).send().await {
@@ -85,11 +81,8 @@ async fn display_log_level(package: &str, port_fwd_info: &PortForwardInfo, is_te
             match response.text().await {
                 Ok(body) => {
                     if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
-                        let prompt = format!("{} log level", package);
-                        let _ = outro_note(
-                            color_output(&prompt, is_terminal_goal),
-                            &serde_json::to_string_pretty(&json).unwrap()
-                        );
+                        let msg = serde_json::to_string_pretty(&json).unwrap();
+                        return Some(OutroMessage::new(Some(format!("{} log level", package)), msg))
                     }
                 },
                 Err(e) => eprintln!("Failed to read response body: {}", e),
@@ -97,40 +90,30 @@ async fn display_log_level(package: &str, port_fwd_info: &PortForwardInfo, is_te
         },
         Err(e) => eprintln!("HTTP request failed: {}", e),
     }
+    None
 }
 
-async fn set_log_level(package: &str, port_fwd_info: &PortForwardInfo, level: &Level, is_terminal_goal: bool) {
+async fn set_log_level(package: &str, local_port: u16, level: &Level) -> Option<OutroMessage> {
     // Make HTTP POST request to the actuator/loggers endpoint
-    let url = format!(
-        "http://localhost:{}/actuator/loggers/{}",
-        port_fwd_info.local_port,
-        package
-    );
+    let url = format!("http://localhost:{}/actuator/loggers/{}", local_port, package);
 
     // Create JSON body with configuredLevel
-    let body = serde_json::json!({
-        "configuredLevel": level.value()
-    });
+    let body = serde_json::json!({ "configuredLevel": level.value() });
 
     let http_client = reqwest::Client::new();
-    match http_client.post(&url)
-        .json(&body)
-        .send()
-        .await
-    {
+    match http_client.post(&url).json(&body).send().await {
         Ok(response) => {
             if response.status().is_success() {
                 let prompt = format!("{} log level", package);
-                let _ = outro_note(
-                    color_output(&prompt, is_terminal_goal),
-                    format!("Set to {}", level.name())
-                );
+                let msg = format!("Set to {}", level.name());
+                return Some(OutroMessage::new(Some(prompt), msg))
             } else {
                 eprintln!("Failed to set log level: HTTP {}", response.status());
             }
         },
         Err(e) => eprintln!("HTTP request failed: {}", e),
     }
+    None
 }
 
 fn prompt_for_log_level() -> Level {

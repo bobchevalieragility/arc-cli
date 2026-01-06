@@ -1,4 +1,4 @@
-use cliclack::{intro, outro, select};
+use cliclack::{intro, select};
 use async_trait::async_trait;
 use aws_runtime::env_config::file::EnvConfigFiles;
 use aws_config::profile;
@@ -6,9 +6,9 @@ use aws_types::os_shim_internal::{Env, Fs};
 use std::collections::HashMap;
 use std::env;
 use aws_runtime::env_config::section::EnvConfigSections;
-use crate::{ArcCommand, Args, Goal, GoalStatus};
+use crate::{ArcCommand, Args, Goal, GoalStatus, OutroMessage};
 use crate::aws::aws_account::AwsAccount;
-use crate::tasks::{color_output, Task, TaskResult};
+use crate::tasks::{Task, TaskResult};
 
 #[derive(Debug)]
 pub struct SelectAwsProfileTask;
@@ -16,7 +16,7 @@ pub struct SelectAwsProfileTask;
 #[async_trait]
 impl Task for SelectAwsProfileTask {
     fn print_intro(&self) {
-        let _ = intro("Select AWS Profile");
+        let _ = intro("Switch AWS Profile");
     }
 
     async fn execute(&self, args: &Option<Args>, _state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
@@ -25,19 +25,30 @@ impl Task for SelectAwsProfileTask {
             if let Ok(current_profile) = env::var("AWS_PROFILE") {
                 let account = get_aws_account(&current_profile).await;
                 let info = AwsProfileInfo::new(current_profile, account);
+                let msg = format!("Using current AWS profile: {}", info.name);
+                let outro_msg = OutroMessage::new(None, msg);
                 let task_result = TaskResult::AwsProfile{ existing: Some(info), updated: None };
-                return GoalStatus::Completed(task_result);
+                return GoalStatus::Completed(task_result, Some(outro_msg));
             }
         }
 
         // Prompt user to select an AWS profile
         let selected_aws_profile = prompt_for_aws_profile().await;
-        let account_id = get_aws_account(&selected_aws_profile).await;
-        outro(format!("AWS profile: {}", color_output(&selected_aws_profile, is_terminal_goal))).unwrap();
 
+        // Set outro content
+        let outro_msg = if is_terminal_goal {
+            let msg = format!("Switched to AWS profile: {}", &selected_aws_profile);
+            Some(OutroMessage::new(None, msg))
+        } else {
+            None
+        };
+
+        // Create task result
+        let account_id = get_aws_account(&selected_aws_profile).await;
         let info = AwsProfileInfo::new(selected_aws_profile, account_id);
         let task_result = TaskResult::AwsProfile{ existing: None, updated: Some(info) };
-        GoalStatus::Completed(task_result)
+
+        GoalStatus::Completed(task_result, outro_msg)
     }
 }
 
@@ -55,7 +66,7 @@ impl AwsProfileInfo {
 async fn prompt_for_aws_profile() -> String {
     let available_profiles = get_available_aws_profiles().await;
 
-    let mut menu = select("Which AWS profile would you like to use?");
+    let mut menu = select("Select an AWS Profile");
     for profile in &available_profiles {
         menu = menu.item(profile, profile, "");
     }

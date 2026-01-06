@@ -1,9 +1,9 @@
 use async_trait::async_trait;
-use cliclack::{intro, outro_note};
+use cliclack::intro;
 use console::style;
 use serde_json::Value;
 use std::collections::HashMap;
-use crate::{ArcCommand, Args, Goal, GoalStatus};
+use crate::{ArcCommand, Args, Goal, GoalStatus, OutroMessage};
 use crate::tasks::{Task, TaskResult, TaskType};
 use crate::tasks::TaskType::GetAwsSecret;
 
@@ -51,20 +51,17 @@ impl Task for LaunchInfluxTask {
         let secret_json: Value = serde_json::from_str(secret_value)
             .expect("Failed to parse JSON");
 
+        // Set outro message content
         let username= secret_json["username"].as_str().unwrap();
         let password = secret_json["password"].as_str().unwrap();
-        let output = format!("username: {}\npassword: {}", username, password);
-
-        if is_terminal_goal {
-            outro_note(
-                style("Influx Credentials").green(),
-                &output
-            ).unwrap();
-        }
+        let outro_msg = OutroMessage::new(
+            Some("Influx Credentials".to_string()),
+            format!("username: {}\npassword: {}", username, password),
+        );
 
         // Open the user's default web browser to the auth URL
         let _ = webbrowser::open(influx_instance.url());
 
-        GoalStatus::Completed(TaskResult::InfluxCommand)
+        GoalStatus::Completed(TaskResult::InfluxCommand, Some(outro_msg))
     }
 }

@@ -1,12 +1,12 @@
-use cliclack::{intro, outro, select};
+use cliclack::{intro, select};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::{env, fs};
 use std::path::PathBuf;
 use kube::config::Kubeconfig;
-use crate::{ArcCommand, Args, Goal, GoalStatus};
+use crate::{ArcCommand, Args, Goal, GoalStatus, OutroMessage};
 use crate::aws::eks_cluster::EksCluster;
-use crate::tasks::{color_output, Task, TaskResult};
+use crate::tasks::{Task, TaskResult};
 
 #[derive(Debug)]
 pub struct SelectKubeContextTask;
@@ -14,7 +14,7 @@ pub struct SelectKubeContextTask;
 #[async_trait]
 impl Task for SelectKubeContextTask {
     fn print_intro(&self) {
-        let _ = intro("Select Kube Context");
+        let _ = intro("Switch Kube Context");
     }
 
     async fn execute(&self, args: &Option<Args>, _state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
@@ -30,7 +30,9 @@ impl Task for SelectKubeContextTask {
                 let eks_cluster = get_cluster(current_context, &config);
                 let info = KubeContextInfo::new(eks_cluster, kube_path);
                 let task_result = TaskResult::KubeContext{ existing: Some(info), updated: None };
-                return GoalStatus::Completed(task_result)
+                let msg = format!("Using current Kube Context: {}", current_context);
+                let outro_msg = OutroMessage::new(None, msg);
+                return GoalStatus::Completed(task_result, Some(outro_msg))
             }
         }
 
@@ -40,6 +42,14 @@ impl Task for SelectKubeContextTask {
 
         // Prompt user to select a kubernetes context
         let selected_kube_context = prompt_for_kube_context(&config);
+
+        // Set outro content
+        let outro_msg = if is_terminal_goal {
+            let msg = format!("Switched to Kube context: {}", &selected_kube_context);
+            Some(OutroMessage::new(None, msg))
+        } else {
+            None
+        };
 
         // Find the cluster associated with the selected context
         let eks_cluster = get_cluster(&selected_kube_context, &config);
@@ -60,10 +70,11 @@ impl Task for SelectKubeContextTask {
         // Export the KUBECONFIG environment variable so that it can be used by dependent tasks
         unsafe { env::set_var("KUBECONFIG", &tmp_kube_path); }
 
-        outro(format!("Kube context: {}", color_output(&selected_kube_context, is_terminal_goal))).unwrap();
+        // Create task result
         let info = KubeContextInfo::new(eks_cluster, tmp_kube_path);
         let task_result = TaskResult::KubeContext{ existing: None, updated: Some(info) };
-        GoalStatus::Completed(task_result)
+
+        GoalStatus::Completed(task_result, outro_msg)
     }
 }
 
@@ -94,7 +105,7 @@ fn get_cluster(context_name: &str, config: &Kubeconfig) -> EksCluster {
 }
 
 fn prompt_for_kube_context(config: &Kubeconfig) -> String {
-    let mut menu = select("Which Kubernetes context would you like to use?");
+    let mut menu = select("Select a Kubernetes Context");
 
     let available_contexts: Vec<String> = config.contexts
         .iter()

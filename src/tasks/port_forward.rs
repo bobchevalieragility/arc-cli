@@ -1,14 +1,14 @@
 use async_trait::async_trait;
 use kube::{Api, Client};
 use kube::api::ListParams;
-use cliclack::{intro, outro_note, select, spinner};
+use cliclack::{intro, note, outro_note, select, spinner};
 use std::collections::HashMap;
 use console::style;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use k8s_openapi::api::core::v1::{Pod, Service, ServiceSpec};
 use tokio::task::AbortHandle;
-use crate::{ArcCommand, Args, Goal, GoalStatus};
+use crate::{ArcCommand, Args, Goal, GoalStatus, OutroMessage};
 use crate::aws::eks_cluster::EksCluster;
 use crate::aws::kube_service::KubeService;
 use crate::tasks::{sleep_indicator, Task, TaskResult, TaskType};
@@ -92,21 +92,19 @@ impl Task for PortForwardTask {
             "Port-Forward established"
         ).await;
 
-        // Display summary message to user
-        let prompt = format!("Port-Forwarding to {} service", service.name);
-        let mut summary = format!("Listening on 127.0.0.1:{}", local_port);
+        // Set outro message content
+        let outro_prompt = format!("Port-Forwarding to {} service", service.name);
+        let mut outro_message = format!("Listening on 127.0.0.1:{}", local_port);
+
         if is_terminal_goal {
             // Assume user wants to keep port-forward open until manually closed
-            summary.push_str("\nPress Ctrl+X to terminate");
-            let _ = outro_note(style(prompt).green(), summary);
+            outro_message.push_str("\nPress Ctrl+X to terminate");
             let _ = port_forward_handle.await;
-        } else {
-            // Port-forward session will be cleaned up when PortForwardInfo is dropped
-            let _ = outro_note(style(prompt).blue(), summary);
         }
 
         let info = PortForwardInfo::new(service.clone(), local_port, handle.clone());
-        GoalStatus::Completed(TaskResult::PortForward(info))
+        let outro_msg = OutroMessage::new(Some(outro_prompt), outro_message);
+        GoalStatus::Completed(TaskResult::PortForward(info), Some(outro_msg))
     }
 }
 

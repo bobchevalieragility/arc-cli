@@ -2,11 +2,11 @@ use async_trait::async_trait;
 use aws_config::BehaviorVersion;
 use aws_sdk_secretsmanager::Client;
 use aws_types::region::Region;
-use cliclack::{intro, outro_note, select};
+use cliclack::{intro, select};
 use std::collections::HashMap;
 
-use crate::{ArcCommand, Args, Goal, GoalStatus};
-use crate::tasks::{color_output, Task, TaskResult, TaskType};
+use crate::{ArcCommand, Args, Goal, GoalStatus, OutroMessage};
+use crate::tasks::{Task, TaskResult, TaskType};
 
 #[derive(Debug)]
 pub struct GetAwsSecretTask;
@@ -58,8 +58,9 @@ impl Task for GetAwsSecretTask {
         let secret_value = resp.expect("Failed to get secret value. Try running 'aws sso login'.")
             .secret_string.expect("Secret may be binary or not found");
 
-        outro_note(color_output("Secret", is_terminal_goal), &secret_value).unwrap();
-        GoalStatus::Completed(TaskResult::AwsSecret(secret_value))
+        let prompt = "Secret Value".to_string();
+        let outro_msg = OutroMessage::new(Some(prompt), secret_value.clone());
+        GoalStatus::Completed(TaskResult::AwsSecret(secret_value), Some(outro_msg))
     }
 }
 

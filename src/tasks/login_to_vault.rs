@@ -1,15 +1,15 @@
 use async_trait::async_trait;
-use cliclack::{intro, outro};
+use cliclack::intro;
 use std::collections::HashMap;
 use std::fs;
 use url::Url;
 use vaultrs::auth::oidc;
 use vaultrs::token;
 
-use crate::{Args, Goal, GoalStatus};
+use crate::{Args, Goal, GoalStatus, OutroMessage};
 use crate::aws::vault;
 use crate::aws::vault::VaultInstance;
-use crate::tasks::{color_output, Task, TaskResult, TaskType};
+use crate::tasks::{Task, TaskResult, TaskType};
 
 #[derive(Debug)]
 pub struct LoginToVaultTask;
@@ -52,8 +52,9 @@ impl Task for LoginToVaultTask {
             if let Ok(token_info) = token::lookup_self(&client).await {
                 if token_info.ttl > 0 {
                     // Existing token is still valid, so let's use it
-                    outro(color_output("Using existing Vault token", is_terminal_goal)).unwrap();
-                    return GoalStatus::Completed(TaskResult::VaultToken(token));
+                    let msg = "Using existing Vault token".to_string();
+                    let outro_msg = OutroMessage::new(None, msg);
+                    return GoalStatus::Completed(TaskResult::VaultToken(token), Some(outro_msg));
                 }
             }
         }
@@ -62,8 +63,9 @@ impl Task for LoginToVaultTask {
         let token = vault_login(&vault_instance).await.expect("Vault login failed");
         save_token_file(&token).expect("Failed to save token file");
 
-        outro(color_output("Successfully logged into Vault", is_terminal_goal)).unwrap();
-        GoalStatus::Completed(TaskResult::VaultToken(token))
+        let msg = "Successfully logged into Vault".to_string();
+        let outro_msg = OutroMessage::new(None, msg);
+        GoalStatus::Completed(TaskResult::VaultToken(token), Some(outro_msg))
     }
 }
 

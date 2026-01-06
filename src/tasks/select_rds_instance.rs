@@ -1,9 +1,9 @@
-use cliclack::{intro, outro, select};
+use cliclack::{intro, select};
 use async_trait::async_trait;
 use std::collections::HashMap;
-use crate::{Args, Goal, GoalStatus};
+use crate::{Args, Goal, GoalStatus, OutroMessage};
 use crate::aws::rds::RdsInstance;
-use crate::tasks::{color_output, Task, TaskResult, TaskType};
+use crate::tasks::{Task, TaskResult, TaskType};
 
 #[derive(Debug)]
 pub struct SelectRdsInstanceTask;
@@ -35,14 +35,19 @@ impl Task for SelectRdsInstanceTask {
         // Get a list of all available RDS instances for this account
         let available_rds_instances = profile_info.account.rds_instances();
 
-        // Prompt user to select a RDS instance only if there are multiple options
-        let rds_instance = match available_rds_instances.len() {
-            1 => available_rds_instances[0],
-            _ => prompt_for_rds_instance(available_rds_instances).await
+        // Prompt user to select RDS instance only if there are multiple options
+        let (rds_instance, msg) = match available_rds_instances.len() {
+            1 => (available_rds_instances[0], Some(format!("Inferred RDS instance: {}", available_rds_instances[0].name()))),
+            _ => (prompt_for_rds_instance(available_rds_instances).await, None)
         };
 
-        outro(format!("RDS instance: {}", color_output(rds_instance.name(), is_terminal_goal))).unwrap();
-        GoalStatus::Completed(TaskResult::RdsInstance(rds_instance))
+        // If there's a message to display, wrap it in an OutroMessage
+        let outro_msg = match msg {
+            Some(m) => Some(OutroMessage::new(None, m)),
+            None => None,
+        };
+
+        GoalStatus::Completed(TaskResult::RdsInstance(rds_instance), outro_msg)
     }
 }
 
