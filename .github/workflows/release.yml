@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       release_created: ${{ steps.release.outputs.releases_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
+      tag_name: ${{ steps.extract_tag.outputs.tag_name }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -31,6 +31,14 @@ jobs:
         uses: MarcoIeni/release-plz-action@v0.5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract tag name from releases JSON
+        id: extract_tag
+        if: steps.release.outputs.releases_created == 'true'
+        run: |
+          TAG=$(echo '${{ steps.release.outputs.releases }}' | jq -r '.[0].tag')
+          echo "tag_name=$TAG" >> $GITHUB_OUTPUT
+          echo "Extracted tag: $TAG"
 
       - name: Upload wrapper script
         uses: actions/upload-artifact@v4
