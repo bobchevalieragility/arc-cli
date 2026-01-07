@@ -3,7 +3,7 @@ use cliclack::{intro, select};
 use std::collections::HashMap;
 use clap::ValueEnum;
 use serde_json::Value;
-use crate::{ArcCommand, Args, Goal, GoalStatus, OutroMessage};
+use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText};
 use crate::tasks::{Task, TaskResult, TaskType};
 use crate::tasks::TaskType::PortForward;
 
@@ -54,7 +54,7 @@ impl Task for SetLogLevelTask {
             _ => panic!("Expected ArcCommand::LogLevel"),
         };
 
-        let outro_msg = if *display_only {
+        let outro_text = if *display_only {
             // We only want to display the current log level
             display_log_level(package, port_fwd_info.local_port).await
         } else {
@@ -67,11 +67,11 @@ impl Task for SetLogLevelTask {
             set_log_level(package, port_fwd_info.local_port, &level).await
         };
 
-        GoalStatus::Completed(TaskResult::LogLevel, outro_msg)
+        GoalStatus::Completed(TaskResult::LogLevel, outro_text)
     }
 }
 
-async fn display_log_level(package: &str, local_port: u16) -> Option<OutroMessage> {
+async fn display_log_level(package: &str, local_port: u16) -> OutroText {
     // Make HTTP GET request to the actuator/loggers endpoint
     let url = format!("http://localhost:{}/actuator/loggers/{}", local_port, package);
 
@@ -82,7 +82,7 @@ async fn display_log_level(package: &str, local_port: u16) -> Option<OutroMessag
                 Ok(body) => {
                     if let Ok(json) = serde_json::from_str::<Value>(&body) {
                         let msg = serde_json::to_string_pretty(&json).unwrap();
-                        return Some(OutroMessage::new(Some(format!("{} log level", package)), msg))
+                        return OutroText::multi(format!("{} log level", package), msg)
                     }
                 },
                 Err(e) => eprintln!("Failed to read response body: {}", e),
@@ -90,10 +90,10 @@ async fn display_log_level(package: &str, local_port: u16) -> Option<OutroMessag
         },
         Err(e) => eprintln!("HTTP request failed: {}", e),
     }
-    None
+    OutroText::None
 }
 
-async fn set_log_level(package: &str, local_port: u16, level: &Level) -> Option<OutroMessage> {
+async fn set_log_level(package: &str, local_port: u16, level: &Level) -> OutroText {
     // Make HTTP POST request to the actuator/loggers endpoint
     let url = format!("http://localhost:{}/actuator/loggers/{}", local_port, package);
 
@@ -104,16 +104,16 @@ async fn set_log_level(package: &str, local_port: u16, level: &Level) -> Option<
     match http_client.post(&url).json(&body).send().await {
         Ok(response) => {
             if response.status().is_success() {
-                let prompt = format!("{} log level", package);
-                let msg = format!("Set to {}", level.name());
-                return Some(OutroMessage::new(Some(prompt), msg))
+                let key = format!("{} log level", package);
+                let value = format!("Set to {}", level.name());
+                return OutroText::multi(key, value)
             } else {
                 eprintln!("Failed to set log level: HTTP {}", response.status());
             }
         },
         Err(e) => eprintln!("HTTP request failed: {}", e),
     }
-    None
+    OutroText::None
 }
 
 fn prompt_for_log_level() -> Level {

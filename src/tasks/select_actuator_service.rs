@@ -1,7 +1,7 @@
 use cliclack::{intro, select};
 use async_trait::async_trait;
 use std::collections::HashMap;
-use crate::{Args, Goal, GoalStatus};
+use crate::{Args, Goal, GoalStatus, OutroText};
 use crate::tasks::{Task, TaskResult};
 
 #[derive(Debug)]
@@ -27,7 +27,7 @@ impl Task for SelectActuatorServiceTask {
         let svc_name = menu.interact().unwrap();
         let service = ActuatorService::from(svc_name);
 
-        GoalStatus::Completed(TaskResult::ActuatorService(service), None)
+        GoalStatus::Completed(TaskResult::ActuatorService(service), OutroText::None)
     }
 }
 

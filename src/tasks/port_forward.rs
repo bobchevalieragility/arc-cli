@@ -9,7 +9,7 @@ use tokio::net::TcpListener;
 use k8s_openapi::api::core::v1::{Pod, Service, ServiceSpec};
 use kube::config::Kubeconfig;
 use tokio::task::AbortHandle;
-use crate::{ArcCommand, Args, Goal, GoalStatus};
+use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText};
 use crate::aws::eks_cluster::EksCluster;
 use crate::aws::kube_service::KubeService;
 use crate::tasks::{sleep_indicator, Task, TaskResult, TaskType};
@@ -106,7 +106,7 @@ impl Task for PortForwardTask {
         }
 
         let info = PortForwardInfo::new(local_port, handle.clone());
-        GoalStatus::Completed(TaskResult::PortForward(info), None)
+        GoalStatus::Completed(TaskResult::PortForward(info), OutroText::None)
     }
 }
 

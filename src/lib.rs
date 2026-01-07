@@ -6,6 +6,7 @@ use std::collections::{HashMap, HashSet};
 use clap::{Parser, Subcommand};
 use cliclack::{outro, outro_note};
 use console::{style, StyledObject};
+use crate::OutroText::{MultiLine, SingleLine};
 use crate::tasks::{TaskResult, TaskType};
 use crate::tasks::set_log_level::Level;
 
@@ -161,21 +162,24 @@ pub async fn run(args: &Args) {
 }
 
 enum GoalStatus {
-    Completed(TaskResult, Option<OutroMessage>),
+    Completed(TaskResult, OutroText),
     Needs(Goal),
 }
 
-struct OutroMessage {
-    prompt: Option<String>,
-    message: String,
+enum OutroText {
+    SingleLine{ key: String, value: String },
+    MultiLine{ key: String, value: String },
+    None,
 }
 
-impl OutroMessage {
-    pub fn new(prompt: Option<String>, message: String) -> OutroMessage {
-        OutroMessage { prompt, message }
+impl OutroText {
+    pub fn single(key: String, value: String) -> OutroText {
+        OutroText::SingleLine { key, value }
+    }
+    pub fn multi(key: String, value: String) -> OutroText {
+        OutroText::MultiLine { key, value }
     }
 }
-
 
 async fn execute_goals(terminal_goals: Vec<Goal>) {
     let mut goals = terminal_goals.clone();
@@ -209,18 +213,17 @@ async fn execute_goals(terminal_goals: Vec<Goal>) {
         // Otherwise, pop the goal from the stack and store its result in the state.
         match goal_result {
             GoalStatus::Needs(dependent_goal) => goals.push(dependent_goal),
-            GoalStatus::Completed(result, optional_outro_msg) => {
-                if *is_terminal_goal && let Some(outro_msg) = optional_outro_msg {
+            GoalStatus::Completed(result, outro_text) => {
+                if *is_terminal_goal {
                     // Print outro message
-                    match outro_msg {
-                        OutroMessage { prompt: Some(prompt), message } => {
-                            let colored_prompt = color_output(&prompt, *is_terminal_goal);
-                            let _ = outro_note(colored_prompt, message);
-                        },
-                        OutroMessage { prompt: None, message } => {
-                            let colored_msg = color_output(&message, *is_terminal_goal);
-                            let _ = outro(&colored_msg);
-                        },
+                    if let SingleLine{ key, value } = outro_text {
+                        let text = format!("{}: {}", style(key).green(), style(value).dim());
+                        let _ = outro(text);
+                    } else if let MultiLine{ key, value } = outro_text {
+                        let prompt = style(key).green();
+                        let message = style(value).dim();
+                        let _ = outro_note(prompt, message);
+
                     }
                 }
 

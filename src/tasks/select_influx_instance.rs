@@ -1,7 +1,7 @@
 use cliclack::{intro, select};
 use async_trait::async_trait;
 use std::collections::HashMap;
-use crate::{Args, Goal, GoalStatus, OutroMessage};
+use crate::{Args, Goal, GoalStatus, OutroText};
 use crate::aws::influx::InfluxInstance;
 use crate::tasks::{Task, TaskResult, TaskType};
 
@@ -36,18 +36,16 @@ impl Task for SelectInfluxInstanceTask {
         let available_influx_instances = profile_info.account.influx_instances();
 
         // Prompt user to select an Influx instance only if there are multiple options
-        let (influx_instance, msg) = match available_influx_instances.len() {
-            1 => (available_influx_instances[0], Some(format!("Inferred Influx instance: {}", available_influx_instances[0].name()))),
-            _ => (prompt_for_influx_instance(available_influx_instances).await, None)
+        let (influx_instance, outro_text) = match available_influx_instances.len() {
+            1 => {
+                let instance = available_influx_instances[0];
+                let key = "Inferred Influx instance".to_string();
+                (instance, OutroText::single(key, instance.name().to_string()))
+            },
+            _ => (prompt_for_influx_instance(available_influx_instances).await, OutroText::None)
         };
 
-        // If there's a message to display, wrap it in an OutroMessage
-        let outro_msg = match msg {
-            Some(m) => Some(OutroMessage::new(None, m)),
-            None => None,
-        };
-
-        GoalStatus::Completed(TaskResult::InfluxInstance(influx_instance), outro_msg)
+        GoalStatus::Completed(TaskResult::InfluxInstance(influx_instance), outro_text)
     }
 }
 

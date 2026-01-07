@@ -6,7 +6,7 @@ use aws_types::os_shim_internal::{Env, Fs};
 use std::collections::HashMap;
 use std::env;
 use aws_runtime::env_config::section::EnvConfigSections;
-use crate::{ArcCommand, Args, Goal, GoalStatus, OutroMessage};
+use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText};
 use crate::aws::aws_account::AwsAccount;
 use crate::tasks::{Task, TaskResult};
 
@@ -25,10 +25,10 @@ impl Task for SelectAwsProfileTask {
             if let Ok(current_profile) = env::var("AWS_PROFILE") {
                 let account = get_aws_account(&current_profile).await;
                 let info = AwsProfileInfo::new(current_profile, account);
-                let msg = format!("Using current AWS profile: {}", info.name);
-                let outro_msg = OutroMessage::new(None, msg);
+                let key = "Using current AWS profile".to_string();
+                let outro_text = OutroText::single(key, info.name.clone());
                 let task_result = TaskResult::AwsProfile{ existing: Some(info), updated: None };
-                return GoalStatus::Completed(task_result, Some(outro_msg));
+                return GoalStatus::Completed(task_result, outro_text);
             }
         }
 
@@ -36,15 +36,15 @@ impl Task for SelectAwsProfileTask {
         let selected_aws_profile = prompt_for_aws_profile().await;
 
         // Set outro content
-        let msg = format!("Switched to AWS profile: {}", &selected_aws_profile);
-        let outro_msg = Some(OutroMessage::new(None, msg));
+        let key = "Switched to AWS profile".to_string();
+        let outro_text = OutroText::single(key, selected_aws_profile.clone());
 
         // Create task result
         let account_id = get_aws_account(&selected_aws_profile).await;
         let info = AwsProfileInfo::new(selected_aws_profile, account_id);
         let task_result = TaskResult::AwsProfile{ existing: None, updated: Some(info) };
 
-        GoalStatus::Completed(task_result, outro_msg)
+        GoalStatus::Completed(task_result, outro_text)
     }
 }
 

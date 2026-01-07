@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use cliclack::intro;
 use serde_json::Value;
-use crate::{ArcCommand, Args, Goal, GoalStatus, OutroMessage};
+use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText};
 use crate::tasks::{Task, TaskResult, TaskType};
 use crate::tasks::TaskType::GetAwsSecret;
 
@@ -57,7 +57,7 @@ impl Task for RunPgcliTask {
             secret_json["username"].as_str().expect("Username field in AWS secret is missing"),
         );
 
-        let outro_msg = OutroMessage::new(None, "Launching pgcli".to_string());
-        GoalStatus::Completed(TaskResult::PgcliCommand(cmd), Some(outro_msg))
+        let outro_text = OutroText::single("Launching pgcli".to_string(), String::new());
+        GoalStatus::Completed(TaskResult::PgcliCommand(cmd), outro_text)
     }
 }

@@ -6,7 +6,7 @@ use url::Url;
 use vaultrs::auth::oidc;
 use vaultrs::token;
 
-use crate::{Args, Goal, GoalStatus, OutroMessage};
+use crate::{Args, Goal, GoalStatus, OutroText};
 use crate::aws::vault;
 use crate::aws::vault::VaultInstance;
 use crate::tasks::{Task, TaskResult, TaskType};
@@ -52,9 +52,8 @@ impl Task for LoginToVaultTask {
             if let Ok(token_info) = token::lookup_self(&client).await {
                 if token_info.ttl > 0 {
                     // Existing token is still valid, so let's use it
-                    let msg = "Using existing Vault token".to_string();
-                    let outro_msg = OutroMessage::new(None, msg);
-                    return GoalStatus::Completed(TaskResult::VaultToken(token), Some(outro_msg));
+                    let _ = cliclack::log::info("Using existing Vault token");
+                    return GoalStatus::Completed(TaskResult::VaultToken(token), OutroText::None);
                 }
             }
         }
@@ -63,9 +62,8 @@ impl Task for LoginToVaultTask {
         let token = vault_login(&vault_instance).await.expect("Vault login failed");
         save_token_file(&token).expect("Failed to save token file");
 
-        let msg = "Successfully logged into Vault".to_string();
-        let outro_msg = OutroMessage::new(None, msg);
-        GoalStatus::Completed(TaskResult::VaultToken(token), Some(outro_msg))
+        let _ = cliclack::log::info("Successfully logged into Vault");
+        GoalStatus::Completed(TaskResult::VaultToken(token), OutroText::None)
     }
 }
 

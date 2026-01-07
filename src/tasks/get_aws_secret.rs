@@ -5,7 +5,7 @@ use aws_types::region::Region;
 use cliclack::{intro, select};
 use std::collections::HashMap;
 
-use crate::{ArcCommand, Args, Goal, GoalStatus, OutroMessage};
+use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText};
 use crate::tasks::{Task, TaskResult, TaskType};
 
 #[derive(Debug)]
@@ -58,9 +58,9 @@ impl Task for GetAwsSecretTask {
         let secret_value = resp.expect("Failed to get secret value. Try running 'aws sso login'.")
             .secret_string.expect("Secret may be binary or not found");
 
-        let prompt = "Secret Value".to_string();
-        let outro_msg = OutroMessage::new(Some(prompt), secret_value.clone());
-        GoalStatus::Completed(TaskResult::AwsSecret(secret_value), Some(outro_msg))
+        let key = "Secret Value".to_string();
+        let outro_text = OutroText::single(key, secret_value.clone());
+        GoalStatus::Completed(TaskResult::AwsSecret(secret_value), outro_text)
     }
 }
 

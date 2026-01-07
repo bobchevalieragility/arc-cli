@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use vaultrs::client::VaultClient;
 use vaultrs::kv2;
 
-use crate::{ArcCommand, Args, Goal, GoalStatus, OutroMessage};
+use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText};
 use crate::tasks::{Task, TaskResult, TaskType};
 use crate::aws::vault;
 
@@ -74,7 +74,7 @@ impl Task for GetVaultSecretTask {
             .await.expect("Unable to read Vault secret");
 
         // Optionally extract a specific field from the secret and format for display
-        let (_, outro_msg) = match &args.command {
+        let (_, outro_text) = match &args.command {
             ArcCommand::Vault{ field: Some(f), .. } => {
                 // Extract specific field
                 let secret_field = match secrets.get(f) {
@@ -83,7 +83,7 @@ impl Task for GetVaultSecretTask {
                         panic!("Field '{}' not found in secret at path '{}'", f, secret_path);
                     }
                 };
-                let outro_msg = OutroMessage::new(Some(f.clone()), secret_field.clone());
+                let outro_msg = OutroText::multi(f.clone(), secret_field.clone());
                 (secret_field, outro_msg)
             },
             _ => {
@@ -93,12 +93,12 @@ impl Task for GetVaultSecretTask {
                     .collect::<Vec<String>>()
                     .join("\n");
                 let prompt = "Secret Value".to_string();
-                let outro_msg = OutroMessage::new(Some(prompt), full_secret.clone());
+                let outro_msg = OutroText::multi(prompt, full_secret.clone());
                 (full_secret, outro_msg)
             },
         };
 
-        GoalStatus::Completed(TaskResult::VaultSecret, Some(outro_msg))
+        GoalStatus::Completed(TaskResult::VaultSecret, outro_text)
     }
 }
 

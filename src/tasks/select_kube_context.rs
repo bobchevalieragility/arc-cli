@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::{env, fs};
 use std::path::PathBuf;
 use kube::config::Kubeconfig;
-use crate::{ArcCommand, Args, Goal, GoalStatus, OutroMessage};
+use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText};
 use crate::aws::eks_cluster::EksCluster;
 use crate::tasks::{Task, TaskResult};
 
@@ -30,9 +30,9 @@ impl Task for SelectKubeContextTask {
                 let eks_cluster = get_cluster(current_context, &config);
                 let info = KubeContextInfo::new(eks_cluster, kube_path);
                 let task_result = TaskResult::KubeContext{ existing: Some(info), updated: None };
-                let msg = format!("Using current Kube Context: {}", current_context);
-                let outro_msg = OutroMessage::new(None, msg);
-                return GoalStatus::Completed(task_result, Some(outro_msg))
+                let key = "Using current Kube Context".to_string();
+                let outro_text = OutroText::single(key, current_context.clone());
+                return GoalStatus::Completed(task_result, outro_text)
             }
         }
 
@@ -44,8 +44,8 @@ impl Task for SelectKubeContextTask {
         let selected_kube_context = prompt_for_kube_context(&config);
 
         // Set outro content
-        let msg = format!("Switched to Kube context: {}", &selected_kube_context);
-        let outro_msg = Some(OutroMessage::new(None, msg));
+        let key = "Switched to Kube context".to_string();
+        let outro_text = OutroText::single(key, selected_kube_context.clone());
 
         // Find the cluster associated with the selected context
         let eks_cluster = get_cluster(&selected_kube_context, &config);
@@ -70,7 +70,7 @@ impl Task for SelectKubeContextTask {
         let info = KubeContextInfo::new(eks_cluster, tmp_kube_path);
         let task_result = TaskResult::KubeContext{ existing: None, updated: Some(info) };
 
-        GoalStatus::Completed(task_result, outro_msg)
+        GoalStatus::Completed(task_result, outro_text)
     }
 }
 
