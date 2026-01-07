@@ -12,6 +12,3 @@ git_release_enable = true
 
 # PR configuration
 pr_labels = ["release"]
-
-# Skip release-plz's own commits to prevent infinite loops (optional, already handled by default)
-skip_commits = "chore: release"
