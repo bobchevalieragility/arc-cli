@@ -17,7 +17,7 @@ impl Task for GetAwsSecretTask {
         let _ = intro("Get AWS Secret");
     }
 
-    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>, _is_terminal_goal: bool) -> GoalStatus {
+    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
         // If AWS profile info is not available, we need to wait for that goal to complete
         let profile_goal = Goal::from(TaskType::SelectAwsProfile);
         if !state.contains_key(&profile_goal) {
@@ -67,7 +67,7 @@ impl Task for GetAwsSecretTask {
 async fn prompt_for_aws_secret(client: &Client) -> String {
     let available_secrets = get_available_secrets(client).await;
 
-    let mut menu = select("Which secret would you like to retrieve?");
+    let mut menu = select("Select a secret to retrieve?");
     for secret in &available_secrets {
         menu = menu.item(secret, secret, "");
     }

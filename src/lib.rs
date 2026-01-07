@@ -4,7 +4,7 @@ mod tasks;
 use std::convert::From;
 use std::collections::{HashMap, HashSet};
 use clap::{Parser, Subcommand};
-use cliclack::{note, outro, outro_note};
+use cliclack::{outro, outro_note};
 use console::{style, StyledObject};
 use crate::tasks::{TaskResult, TaskType};
 use crate::tasks::set_log_level::Level;
@@ -48,6 +48,9 @@ enum ArcCommand {
 
         #[arg(short, long, help = "Local port (defaults to random, unused port)")]
         port: Option<u16>,
+
+        #[arg(short, long, help = "Tear down port-forwarding when command exits")]
+        tear_down: bool,
     },
     #[command(about = "Switch AWS profile and/or Kubernetes context")]
     Switch {
@@ -199,7 +202,7 @@ async fn execute_goals(terminal_goals: Vec<Goal>) {
         }
 
         // Attempt to complete the next goal on the stack
-        let goal_result = task_type.to_task().execute(args, &state, *is_terminal_goal).await;
+        let goal_result = task_type.to_task().execute(args, &state).await;
 
         // If next goal indicates that it needs the result of a dependent goal, then add the
         // dependent goal onto the stack, leaving the original goal to be executed at a later time.
@@ -207,24 +210,16 @@ async fn execute_goals(terminal_goals: Vec<Goal>) {
         match goal_result {
             GoalStatus::Needs(dependent_goal) => goals.push(dependent_goal),
             GoalStatus::Completed(result, optional_outro_msg) => {
-                if let Some(outro_msg) = optional_outro_msg {
+                if *is_terminal_goal && let Some(outro_msg) = optional_outro_msg {
                     // Print outro message
                     match outro_msg {
                         OutroMessage { prompt: Some(prompt), message } => {
                             let colored_prompt = color_output(&prompt, *is_terminal_goal);
-                            if *is_terminal_goal {
-                                let _ = outro_note(colored_prompt, message);
-                            } else {
-                                let _ = note(colored_prompt, message);
-                            }
+                            let _ = outro_note(colored_prompt, message);
                         },
                         OutroMessage { prompt: None, message } => {
                             let colored_msg = color_output(&message, *is_terminal_goal);
-                            if *is_terminal_goal {
-                                let _ = outro(&colored_msg);
-                            } else {
-                                let _ = cliclack::log::info(&colored_msg);
-                            }
+                            let _ = outro(&colored_msg);
                         },
                     }
                 }

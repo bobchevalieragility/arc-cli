@@ -16,7 +16,7 @@ impl Task for SetLogLevelTask {
         let _ = intro("Log Level");
     }
 
-    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>, _is_terminal_goal: bool) -> GoalStatus {
+    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
         // If a service has not yet been selected, we need to wait for that goal to complete
         let svc_selection_goal = Goal::from(TaskType::SelectActuatorService);
         if !state.contains_key(&svc_selection_goal) {
@@ -32,8 +32,9 @@ impl Task for SetLogLevelTask {
         };
 
         // If a port-forwarding session doesn't exist, we need to wait for that goal to complete
+        let service = service.name().to_string();
         let port_fwd_goal = Goal::new(PortForward, Some(Args {
-            command: ArcCommand::PortForward { service: Some(service.name().to_string()), port: None }
+            command: ArcCommand::PortForward { service: Some(service), port: None, tear_down: true }
         }));
         if !state.contains_key(&port_fwd_goal) {
             return GoalStatus::Needs(port_fwd_goal);

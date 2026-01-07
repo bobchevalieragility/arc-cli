@@ -13,7 +13,7 @@ impl Task for SelectActuatorServiceTask {
         let _ = intro("Select Actuator Service");
     }
 
-    async fn execute(&self, _args: &Option<Args>, _state: &HashMap<Goal, TaskResult>, _is_terminal_goal: bool) -> GoalStatus {
+    async fn execute(&self, _args: &Option<Args>, _state: &HashMap<Goal, TaskResult>) -> GoalStatus {
         let services = ActuatorService::all();
 
         // Prompt user to select a service that supports actuator functionality

@@ -17,7 +17,7 @@ impl Task for SelectKubeContextTask {
         let _ = intro("Switch Kube Context");
     }
 
-    async fn execute(&self, args: &Option<Args>, _state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
+    async fn execute(&self, args: &Option<Args>, _state: &HashMap<Goal, TaskResult>) -> GoalStatus {
         if let ArcCommand::Switch{ use_current: true, .. } = &args.as_ref().expect("Args is None").command {
             if let Ok(current_kubeconfig) = env::var("KUBECONFIG") {
                 let kube_path = PathBuf::from(current_kubeconfig);
@@ -44,12 +44,8 @@ impl Task for SelectKubeContextTask {
         let selected_kube_context = prompt_for_kube_context(&config);
 
         // Set outro content
-        let outro_msg = if is_terminal_goal {
-            let msg = format!("Switched to Kube context: {}", &selected_kube_context);
-            Some(OutroMessage::new(None, msg))
-        } else {
-            None
-        };
+        let msg = format!("Switched to Kube context: {}", &selected_kube_context);
+        let outro_msg = Some(OutroMessage::new(None, msg));
 
         // Find the cluster associated with the selected context
         let eks_cluster = get_cluster(&selected_kube_context, &config);

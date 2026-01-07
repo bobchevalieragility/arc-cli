@@ -15,7 +15,7 @@ impl Task for RunPgcliTask {
         let _ = intro("Run pgcli");
     }
 
-    async fn execute(&self, _args: &Option<Args>, state: &HashMap<Goal, TaskResult>, _is_terminal_goal: bool) -> GoalStatus {
+    async fn execute(&self, _args: &Option<Args>, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
         // If an RDS instance has not yet been selected, we need to wait for that goal to complete
         let rds_selection_goal = Goal::from(TaskType::SelectRdsInstance);
         if !state.contains_key(&rds_selection_goal) {

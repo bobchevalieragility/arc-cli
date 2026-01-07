@@ -19,7 +19,7 @@ impl Task for SelectAwsProfileTask {
         let _ = intro("Switch AWS Profile");
     }
 
-    async fn execute(&self, args: &Option<Args>, _state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
+    async fn execute(&self, args: &Option<Args>, _state: &HashMap<Goal, TaskResult>) -> GoalStatus {
         if let ArcCommand::Switch{ use_current: true, .. } = &args.as_ref().expect("Args is None").command {
             // User wants to use current AWS_PROFILE, if it's already set
             if let Ok(current_profile) = env::var("AWS_PROFILE") {
@@ -36,12 +36,8 @@ impl Task for SelectAwsProfileTask {
         let selected_aws_profile = prompt_for_aws_profile().await;
 
         // Set outro content
-        let outro_msg = if is_terminal_goal {
-            let msg = format!("Switched to AWS profile: {}", &selected_aws_profile);
-            Some(OutroMessage::new(None, msg))
-        } else {
-            None
-        };
+        let msg = format!("Switched to AWS profile: {}", &selected_aws_profile);
+        let outro_msg = Some(OutroMessage::new(None, msg));
 
         // Create task result
         let account_id = get_aws_account(&selected_aws_profile).await;

@@ -23,7 +23,7 @@ impl Task for PortForwardTask {
         let _ = intro("Port Forward");
     }
 
-    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus {
+    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
         // If Kube context has not been selected, we need to wait for that goal to complete
         let context_goal = Goal::from(TaskType::SelectKubeContext);
         if !state.contains_key(&context_goal) {
@@ -95,7 +95,8 @@ impl Task for PortForwardTask {
         );
         sleep_indicator(2, "Establishing port-forward...", &end_msg).await;
 
-        if is_terminal_goal {
+        // Determine which local port will be used for port-forwarding
+        if let ArcCommand::PortForward{ tear_down: false, .. } = &args.as_ref().expect("Args is None").command {
             let prompt = format!("Port-Forwarding to {} service", service.name);
             let msg = format!("Listening on 127.0.0.1:{}\nPress Ctrl+X to terminate", local_port);
             let _ = outro_note(style(prompt).green(), msg);

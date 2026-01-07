@@ -33,7 +33,7 @@ use crate::tasks::set_log_level::SetLogLevelTask;
 #[async_trait]
 pub trait Task: Send + Sync {
     fn print_intro(&self);
-    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>, is_terminal_goal: bool) -> GoalStatus;
+    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>) -> GoalStatus;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
