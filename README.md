@@ -1,21 +1,46 @@
 # arc-cli
-CLI Tool for Arc Backend
+A CLI Tool for Arc Backend
 
 ## Overview
-The Arc CLI provides the following commands:
+The main benefits of the Arc CLI are:
+- It provides a single, unified CLI for tasks that normally require multiple tools and custom shell functions.
+- Command dependencies are automatically handled. For instance:
+  - If a command needs port-forwarding (i.e. log-level), a session will be automatically started/stopped
+  - If a command requires a secret, it will be automatically fetched
+  - If a command interacts with AWS and you don't have an active AWS profile, you'll be prompted to select one
+- If command args aren't explicitly provided, the user is prompted to interactively select from a menu.\
+  (So you don't have to remember every profile name, k8s context, service port, etc.)
+- Selection menus are context-aware, meaning values are filtered based on previously specified inputs.
+- Terminal isolation is enforced for Kubernetes contexts, meaning that multiple terminal sessions, with different contexts, can be open simultaneously.
+- It's built with Rust, ensuring high performance and reliability.
 
-- **`log-level`** - Dynamically set the logging level of a Backend service
-- **`pgcli`** - Retrieve credentials and launch pgcli
-- **`influx`** - Retrieve credentials and launch the InfluxDB UI
-- **`aws-secret`** - Retrieve secrets from AWS Secrets Manager 
-- **`vault`** - Retrieve secrets from HashiCorp Vault
-- **`switch`** - Switch AWS profile and/or Kubernetes context
-- **`port-forward`** - Create a port forwarding session to a Backend service
+![Help Menu](assets/help_menu.png)
 
 ## Installation
 
-### From Source
-#### Install Rust
+### Option 1: From Source
+1. Install Rust (from https://www.rust-lang.org/tools/install)
+   ```bash
+   $ curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh
+   ```
+2. Download the source code:
+   ```bash
+   $ git clone git@github.com:bobchevalieragility/arc-cli.git
+   ```
+3. From the root of the project, build and install the binary:   
+   ```bash
+   $ cargo install --path .
+   ```
+4. Create `~/.arc-cli/` and copy the wrapper script into that directory:  
+   ```bash
+   $ mkdir ~/.arc-cli
+   $ cp scripts/arc.sh ~/.arc-cli/arc.sh
+   ```
+5. Source the wrapper script from your shell config file (.zshrc, .bashrc, etc.):
+   ```bash
+   $ echo 'source ~/.arc-cli/arc.sh' >> ~/.zshrc
+   ```
+### Option 2: Pre-compiled Binaries
 
 ## Development
 
@@ -87,14 +112,14 @@ docs(readme): add contribution guidelines
 
 This project uses [release-plz](https://release-plz.iem.at/) to automate releases:
 
-1. **Push commits to `main`** - Use conventional commit messages
+1. **Merge a PR to `main`** - Use conventional commit messages
 2. **Automated PR is created** - release-plz analyzes commits and creates a PR with:
    - Updated version in `Cargo.toml`
    - Generated changelog in `CHANGELOG.md`
 3. **Review and merge the PR** - Once merged:
-   - GitHub Release is created with the new version tag
-   - Binaries are built for multiple architectures
-   - Release assets are attached to the GitHub Release
+   - A Git tag is created with the new version
+   - A GitHub Release is created and associated with the new tag
+   - Binaries are built for multiple architectures and uploaded to Release
 
 No manual version bumping or changelog editing required!
 
