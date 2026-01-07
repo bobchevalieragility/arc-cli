@@ -1,6 +1,7 @@
 [workspace]
 # Disable publishing to crates.io
 publish = false
+release = true
 
 # Changelog configuration
 changelog_update = true
