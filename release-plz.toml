@@ -1,0 +1,17 @@
+[workspace]
+# Disable publishing to crates.io
+publish = false
+
+# Changelog configuration
+changelog_update = true
+changelog_path = "CHANGELOG.md"
+
+# Git tag configuration
+git_tag_enable = true
+git_release_enable = true
+
+# PR configuration
+pr_labels = ["release"]
+
+# Skip release-plz's own commits to prevent infinite loops (optional, already handled by default)
+skip_commits = "chore: release"
