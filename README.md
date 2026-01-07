@@ -14,6 +14,9 @@ The Arc CLI provides the following commands:
 
 ## Installation
 
+### From Source
+#### Install Rust
+
 ## Development
 
 ### Commit Message Convention

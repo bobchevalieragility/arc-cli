@@ -137,10 +137,9 @@ jobs:
           tag_name: ${{ needs.release-plz.outputs.tag_name }}
           files: |
             artifacts/arc-linux-amd64/arc-linux-amd64
-            artifacts/arc-linux-arm64/arc-linux-arm64
             artifacts/arc-macos-amd64/arc-macos-amd64
             artifacts/arc-macos-arm64/arc-macos-arm64
-            artifacts/arc.sh
+            artifacts/arc.sh/arc.sh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
