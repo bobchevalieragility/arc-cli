@@ -1,6 +1,19 @@
 # arc-cli
 CLI Tool for Arc Backend
 
+## Overview
+The Arc CLI provides the following commands:
+
+- **`log-level`** - Dynamically set the logging level of a Backend service
+- **`pgcli`** - Retrieve credentials and launch pgcli
+- **`influx`** - Retrieve credentials and launch the InfluxDB UI
+- **`aws-secret`** - Retrieve secrets from AWS Secrets Manager 
+- **`vault`** - Retrieve secrets from HashiCorp Vault
+- **`switch`** - Switch AWS profile and/or Kubernetes context
+- **`port-forward`** - Create a port forwarding session to a Backend service
+
+## Installation
+
 ## Development
 
 ### Commit Message Convention
