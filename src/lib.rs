@@ -26,7 +26,7 @@ enum ArcCommand {
     },
     #[command(about = "Launch the InfluxDB UI")]
     Influx,
-    #[command(about = "View or set the log level for a Java service that uses Actuator")]
+    #[command(about = "View or set the log level for a Java Spring Boot service")]
     LogLevel {
         #[arg(short, long, help = "Service name, e.g. 'metrics' (if omitted, will prompt)")]
         service: Option<String>,

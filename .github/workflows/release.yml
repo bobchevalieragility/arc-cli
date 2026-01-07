@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   release-plz:
-    if: false # temporarily disable until the following ticket is resolved: https://github.com/release-plz/release-plz/pull/2512
+#    if: false # temporarily disable until the following ticket is resolved: https://github.com/release-plz/release-plz/pull/2512
     name: Release Please
     runs-on: ubuntu-latest
     outputs:
@@ -32,10 +32,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Upload wrapper script
+        uses: actions/upload-artifact@v4
+        with:
+          name: arc.sh
+          path: scripts/arc.sh
+
   build-binaries:
     name: Build Binaries
-#    needs: release-plz
-#    if: needs.release-plz.outputs.release_created == 'true'
+    needs: release-plz
+    if: needs.release-plz.outputs.release_created == 'true'
     strategy:
       matrix:
         include:
@@ -99,17 +105,16 @@ jobs:
         run: |
           cp target/${{ matrix.target }}/release/arc ${{ matrix.artifact_name }}
 
-#      - name: Upload artifact
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: ${{ matrix.artifact_name }}
-#          path: ${{ matrix.artifact_name }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_name }}
 
   upload-release-assets:
     name: Upload Release Assets
     needs: [release-plz, build-binaries]
-    #if: needs.release-plz.outputs.release_created == 'true'
-    if: false # temporarily disable
+    if: needs.release-plz.outputs.release_created == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -127,6 +132,7 @@ jobs:
             artifacts/arc-linux-arm64/arc-linux-arm64
             artifacts/arc-macos-amd64/arc-macos-amd64
             artifacts/arc-macos-arm64/arc-macos-arm64
+            artifacts/arc.sh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
