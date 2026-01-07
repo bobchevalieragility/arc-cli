@@ -21,7 +21,6 @@ impl VaultInstance {
         }
     }
 
-    //TODO move this to AwsAccount?
     pub fn secrets_namespace(&self, account: &AwsAccount) -> Option<String> {
         match self {
             VaultInstance::NonProd => {
