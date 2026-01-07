@@ -1,10 +1,6 @@
 [workspace]
 # Disable publishing to crates.io
 publish = false
-release = true
-
-# Use git tags for version comparison instead of crates.io registry
-git_release_type = "auto"
 
 # Changelog configuration
 changelog_update = true

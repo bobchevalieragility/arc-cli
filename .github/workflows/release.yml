@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   release-plz:
+    if: false # temporarily disable until the following ticket is resolved: https://github.com/release-plz/release-plz/pull/2512
     name: Release Please
     runs-on: ubuntu-latest
     outputs:
@@ -33,8 +34,8 @@ jobs:
 
   build-binaries:
     name: Build Binaries
-    needs: release-plz
-    if: needs.release-plz.outputs.release_created == 'true'
+#    needs: release-plz
+#    if: needs.release-plz.outputs.release_created == 'true'
     strategy:
       matrix:
         include:
@@ -105,16 +106,17 @@ jobs:
         run: |
           cp target/${{ matrix.target }}/release/arc ${{ matrix.artifact_name }}
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact_name }}
-          path: ${{ matrix.artifact_name }}
+#      - name: Upload artifact
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: ${{ matrix.artifact_name }}
+#          path: ${{ matrix.artifact_name }}
 
   upload-release-assets:
     name: Upload Release Assets
     needs: [release-plz, build-binaries]
-    if: needs.release-plz.outputs.release_created == 'true'
+    #if: needs.release-plz.outputs.release_created == 'true'
+    if: false # temporarily disable
     runs-on: ubuntu-latest
 
     steps:
