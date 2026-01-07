@@ -21,26 +21,47 @@ The main benefits of the Arc CLI are:
 ### Option 1: From Source
 1. Install Rust (from https://www.rust-lang.org/tools/install)
    ```bash
-   $ curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh
+   curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh
    ```
 2. Download the source code:
    ```bash
-   $ git clone git@github.com:bobchevalieragility/arc-cli.git
+   git clone git@github.com:bobchevalieragility/arc-cli.git
    ```
 3. From the root of the project, build and install the binary:   
    ```bash
-   $ cargo install --path .
+   cargo install --path .
    ```
-4. Create `~/.arc-cli/` and copy the wrapper script into that directory:  
+4. Install the wrapper script:  
    ```bash
-   $ mkdir ~/.arc-cli
-   $ cp scripts/arc.sh ~/.arc-cli/arc.sh
+   mkdir ~/.arc-cli
+   cp scripts/arc.sh ~/.arc-cli/arc.sh
    ```
 5. Source the wrapper script from your shell config file (.zshrc, .bashrc, etc.):
    ```bash
-   $ echo 'source ~/.arc-cli/arc.sh' >> ~/.zshrc
+   echo 'source ~/.arc-cli/arc.sh' >> ~/.zshrc
    ```
 ### Option 2: Pre-compiled Binaries
+1. Choose the binary type that is appropriate for your OS:
+   - MacOS ARM64: `arc-macos-arm64`
+   - MacOS x86_64: `arc-macos-amd64`
+   - Linux x86_64: `arc-linux-amd64`
+2. Download and install the latest version of the binary: 
+   ```bash
+   curl -LO https://github.com/bobchevalieragility/arc-cli/releases/latest/download/arc-macos-arm64
+   chmod +x arc-macos-arm64
+   sudo mv arc-macos-arm64 /usr/local/bin/arc
+   ```
+3. Download and install the latest version of the wrapper script:
+   ```bash
+   curl -LO https://github.com/bobchevalieragility/arc-cli/releases/latest/download/arc.sh
+   chmod +x arc.sh
+   mkdir ~/.arc-cli
+   mv arc.sh ~/.arc-cli/arc.sh
+   ```
+4. Source the wrapper script from your shell config file (.zshrc, .bashrc, etc.):
+   ```bash
+   echo 'source ~/.arc-cli/arc.sh' >> ~/.zshrc
+   ```
 
 ## Development
 

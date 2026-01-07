@@ -19,13 +19,6 @@ pub struct Args {
 
 #[derive(Subcommand, Clone, Debug, PartialEq, Eq, Hash)]
 enum ArcCommand {
-    #[command(about = "Retrieve a secret value from AWS Secrets Manager")]
-    AwsSecret {
-        #[arg(short, long, help = "Name of the secret to retrieve (if omitted, will prompt)")]
-        name: Option<String>,
-    },
-    #[command(about = "Launch the InfluxDB UI")]
-    Influx,
     #[command(about = "View or set the log level for a Java Spring Boot service")]
     LogLevel {
         #[arg(short, long, help = "Service name, e.g. 'metrics' (if omitted, will prompt)")]
@@ -40,8 +33,23 @@ enum ArcCommand {
         #[arg(short, long, help = "Just print the current log level")]
         display_only: bool,
     },
+    #[command(about = "Retrieve a secret value from AWS Secrets Manager")]
+    AwsSecret {
+        #[arg(short, long, help = "Name of the secret to retrieve (if omitted, will prompt)")]
+        name: Option<String>,
+    },
+    #[command(about = "Retrieve a secret value from Vault")]
+    Vault {
+        #[arg(short, long, help = "Path to secret to retrieve (if omitted, will prompt)")]
+        path: Option<String>,
+
+        #[arg(short, long, help = "Field within secret to retrieve (defaults to entire secret)")]
+        field: Option<String>,
+    },
     #[command(about = "Launch pgcli to interact with a Postgres RDS instance")]
     Pgcli,
+    #[command(about = "Launch the InfluxDB UI")]
+    Influx,
     #[command(about = "Start port-forwarding to a Kubernetes service")]
     PortForward {
         #[arg(short, long, help = "Service name, e.g. 'metrics' (if omitted, will prompt)")]
@@ -64,14 +72,6 @@ enum ArcCommand {
         #[arg(short, long, help = "Whether to skip if already set (defaults to false)")]
         use_current: bool,
     },
-    #[command(about = "Retrieve a secret value from Vault")]
-    Vault {
-        #[arg(short, long, help = "Path to secret to retrieve (if omitted, will prompt)")]
-        path: Option<String>,
-
-        #[arg(short, long, help = "Field within secret to retrieve (defaults to entire secret)")]
-        field: Option<String>,
-    }
 }
 
 impl Args {
