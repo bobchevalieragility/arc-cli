@@ -239,7 +239,8 @@ async fn execute_goals(terminal_goals: Vec<Goal>) {
         }
     }
 
-    // This is the final output that the parent shell should eval
+    // This is the final output that the parent shell should eval.
+    // All other program outputs are sent to stderr (i.e. clickack interactive menus, outros, etc).
     println!("{eval_string}");
 }
 
