@@ -50,7 +50,7 @@ impl Task for SelectInfluxInstanceTask {
 }
 
 async fn prompt_for_influx_instance(available_influx_instances: Vec<InfluxInstance>) -> InfluxInstance {
-    let mut menu = select("Which InfluxDB instance would you like to connect to?");
+    let mut menu = select("Select InfluxDB instance");
     for influx in &available_influx_instances {
         menu = menu.item(influx.name(), influx.name(), "");
     }

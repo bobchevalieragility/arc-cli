@@ -1,12 +1,12 @@
 # arc-cli
-A CLI Tool for Arc Backend
+This CLI tool unifies functionality from multiple tools (kubectl, awscli, pgcli, vault, etc.) into a single interface tailored for Arc Backend developers. It also replaces functionality that would typically be provided by shell functions/scripts.
 
-## Overview
-The main benefits of the Arc CLI are:
-- It provides a single, unified CLI for tasks that normally require multiple tools and custom shell functions.
+![Help Menu](assets/help_menu.png)
+
+## Features
 - Command dependencies are automatically handled. For instance:
-  - If a command needs port-forwarding (i.e. log-level), a session will be automatically started/stopped
-  - If a command requires a secret, it will be automatically fetched
+  - If a command needs port-forwarding, a session will be automatically started/stopped
+  - If a command requires a secret, the secret will be automatically fetched from either Vault or AWS Secrets Manager
   - If a command interacts with AWS and you don't have an active AWS profile, you'll be prompted to select one
 - If command args aren't explicitly provided, the user is prompted to interactively select from a menu.\
   (So you don't have to remember every profile name, k8s context, service port, etc.)
@@ -14,7 +14,21 @@ The main benefits of the Arc CLI are:
 - Terminal isolation is enforced for Kubernetes contexts, meaning that multiple terminal sessions, with different contexts, can be open simultaneously.
 - It's built with Rust, ensuring high performance and reliability.
 
-![Help Menu](assets/help_menu.png)
+## Examples
+### Dynamically modify logging level of an Arc Backend service
+In addition to the desired logging level, the `log-level` command also needs to be told which service to modify, in which K8 cluster the service resides, and a port-forwarding session to the service must exist.  If any of this context does not exist in the current "state" of the program, the corresponding commands to gather that context will be automatically executed before the `log-level` command. Once the overall program execution completes, the port-forwarding session is automatically torn down.
+
+![pgcli](assets/demo-log-level.gif)
+
+### Launch pgcli  
+Launching `pgcli` depends on knowing which AWS account to use and which instance of Postres to connect to. If any of that info is not explicitly provided, the corresponding commands to gather that context will be automatically executed, resulting in the user being prompted to provide the necessary context.
+
+![pgcli](assets/demo-pgcli.gif)
+
+### Switch active AWS Profile and/or K8s Context
+The available AWS Profiles are inferred by inspecting ~/.aws/config.  Similarly, the available K8 Contexts are inferred by inspecting ~/.kube/config.
+
+![pgcli](assets/demo-switch.gif)
 
 ## Installation
 

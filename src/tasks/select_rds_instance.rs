@@ -50,7 +50,7 @@ impl Task for SelectRdsInstanceTask {
 }
 
 async fn prompt_for_rds_instance(available_rds_instances: Vec<RdsInstance>) -> RdsInstance {
-    let mut menu = select("Which RDS instance would you like to connect to?");
+    let mut menu = select("Select RDS instance");
     for rds in &available_rds_instances {
         menu = menu.item(rds.name(), rds.name(), "");
     }
