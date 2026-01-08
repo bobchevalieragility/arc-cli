@@ -52,7 +52,7 @@ impl Task for RunPgcliTask {
 
         let cmd = format!(
             "export PGPASSWORD={}\npgcli -h {} -U {}",
-            secret_json["password"].as_str().expect("Password field in AWS secret is missing"),
+            secret_json["password"], // Don't unwrap to string because we want to retain the quotes
             rds_instance.host(),
             secret_json["username"].as_str().expect("Username field in AWS secret is missing"),
         );
