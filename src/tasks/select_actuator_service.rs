@@ -1,7 +1,7 @@
 use cliclack::{intro, select};
 use async_trait::async_trait;
-use std::collections::HashMap;
-use crate::{Args, Goal, GoalStatus, OutroText};
+use crate::{Args, GoalStatus, OutroText, State};
+use crate::errors::ArcError;
 use crate::tasks::{Task, TaskResult};
 
 #[derive(Debug)]
@@ -13,7 +13,7 @@ impl Task for SelectActuatorServiceTask {
         let _ = intro("Select Actuator Service");
     }
 
-    async fn execute(&self, _args: &Option<Args>, _state: &HashMap<Goal, TaskResult>) -> GoalStatus {
+    async fn execute(&self, _args: &Option<Args>, _state: &State) -> Result<GoalStatus, ArcError> {
         let services = ActuatorService::all();
 
         // Prompt user to select a service that supports actuator functionality
@@ -24,13 +24,14 @@ impl Task for SelectActuatorServiceTask {
         }
 
         // Convert selected service name to an ActuatorService
-        let svc_name = menu.interact().unwrap();
+        let svc_name = menu.interact()?;
         let service = ActuatorService::from(svc_name);
 
-        GoalStatus::Completed(TaskResult::ActuatorService(service), OutroText::None)
+        Ok(GoalStatus::Completed(TaskResult::ActuatorService(service), OutroText::None))
     }
 }
 
+#[derive(Debug)]
 pub enum ActuatorService {
     Metrics,
 }

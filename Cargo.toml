@@ -4,6 +4,7 @@ version = "0.1.1"
 edition = "2024"
 
 [dependencies]
+anyhow = "1.0.100"
 async-trait = "0.1"
 aws-config = "1.8.12"
 aws-runtime = "1.5.17"
@@ -22,6 +23,7 @@ reqwest = { version = "0.12", features = ["json"] }
 rustls = {  version = "0.23.35", default-features = false, features = ["aws-lc-rs"] }
 serde_json = "1.0.148"
 serde_yaml = "0.9"
+thiserror = "2.0.17"
 tiny_http = "0.12.0"
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "net", "io-util"] }
 url = "2.5.7"

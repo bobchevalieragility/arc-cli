@@ -3,6 +3,7 @@ use crate::aws::influx::InfluxInstance;
 use crate::aws::rds::RdsInstance;
 use crate::aws::vault::VaultInstance;
 
+#[derive(Debug)]
 pub enum AwsAccount {
     Dev,
     Stage,

@@ -1,8 +1,8 @@
 use cliclack::{intro, select};
 use async_trait::async_trait;
-use std::collections::HashMap;
-use crate::{Args, Goal, GoalStatus, OutroText};
+use crate::{Args, Goal, GoalStatus, OutroText, State};
 use crate::aws::influx::InfluxInstance;
+use crate::errors::ArcError;
 use crate::tasks::{Task, TaskResult, TaskType};
 
 #[derive(Debug)]
@@ -14,23 +14,15 @@ impl Task for SelectInfluxInstanceTask {
         let _ = intro("Select InfluxDB Instance");
     }
 
-    async fn execute(&self, _args: &Option<Args>, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
+    async fn execute(&self, _args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {
         // If AWS profile info is not available, we need to wait for that goal to complete
         let profile_goal = Goal::from(TaskType::SelectAwsProfile);
-        if !state.contains_key(&profile_goal) {
-            return GoalStatus::Needs(profile_goal);
+        if !state.contains(&profile_goal) {
+            return Ok(GoalStatus::Needs(profile_goal));
         }
 
-        // Retrieve info about the desired AWS profile from state
-        let aws_profile_result = state.get(&profile_goal)
-            .expect("TaskResult for SelectAwsProfile not found");
-        let profile_info = match aws_profile_result {
-            TaskResult::AwsProfile { existing, updated } => {
-                updated.as_ref().or(existing.as_ref())
-                    .expect("No AWS profile available (both existing and updated are None)")
-            },
-            _ => panic!("Expected TaskResult::AwsProfile"),
-        };
+        // Retrieve info about the selected AWS profile from state
+        let profile_info = state.get_aws_profile_info(&profile_goal)?;
 
         // Get a list of all available Influx instances for this account
         let available_influx_instances = profile_info.account.influx_instances();
@@ -45,7 +37,7 @@ impl Task for SelectInfluxInstanceTask {
             _ => (prompt_for_influx_instance(available_influx_instances).await, OutroText::None)
         };
 
-        GoalStatus::Completed(TaskResult::InfluxInstance(influx_instance), outro_text)
+        Ok(GoalStatus::Completed(TaskResult::InfluxInstance(influx_instance), outro_text))
     }
 }
 

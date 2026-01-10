@@ -3,9 +3,8 @@ use aws_config::BehaviorVersion;
 use aws_sdk_secretsmanager::Client;
 use aws_types::region::Region;
 use cliclack::{intro, select};
-use std::collections::HashMap;
-
-use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText};
+use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText, State};
+use crate::errors::ArcError;
 use crate::tasks::{Task, TaskResult, TaskType};
 
 #[derive(Debug)]
@@ -17,23 +16,22 @@ impl Task for GetAwsSecretTask {
         let _ = intro("Get AWS Secret");
     }
 
-    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
+    async fn execute(&self, args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {
+        // Validate that args are present
+        //TODO see if InvalidArcCommand can accept &str instead of String (implicit conversions?)
+        let args = args.as_ref().ok_or_else(|| ArcError::InvalidArcCommand(
+            "AwsSecret".to_string(),
+            "None".to_string()
+        ))?;
+
         // If AWS profile info is not available, we need to wait for that goal to complete
         let profile_goal = Goal::from(TaskType::SelectAwsProfile);
-        if !state.contains_key(&profile_goal) {
-            return GoalStatus::Needs(profile_goal);
+        if !state.contains(&profile_goal) {
+            return Ok(GoalStatus::Needs(profile_goal));
         }
 
-        // Retrieve info about the desired AWS profile from state
-        let aws_profile_result = state.get(&profile_goal)
-            .expect("TaskResult for SelectAwsProfile not found");
-        let profile_info = match aws_profile_result {
-            TaskResult::AwsProfile { existing, updated } => {
-                updated.as_ref().or(existing.as_ref())
-                    .expect("No AWS profile available (both existing and updated are None)")
-            },
-            _ => panic!("Expected TaskResult::AwsProfile"),
-        };
+        // Retrieve info about the selected AWS profile from state
+        let profile_info = state.get_aws_profile_info(&profile_goal)?;
 
         // Create AWS Secrets Manager client with the selected profile
         let aws_config = aws_config::defaults(BehaviorVersion::latest())
@@ -44,38 +42,43 @@ impl Task for GetAwsSecretTask {
         let client = Client::new(&aws_config);
 
         // Determine which secret to retrieve, prompting user if necessary
-        let secret_name = match &args.as_ref().expect("Args is None").command {
+        let secret_name = match &args.command {
             ArcCommand::AwsSecret{ name: Some(x) } => x.clone(),
-            _ => prompt_for_aws_secret(&client).await,
+            ArcCommand::AwsSecret{ name: None } => prompt_for_aws_secret(&client).await?,
+            _ => return Err(ArcError::InvalidArcCommand(
+                "AwsSecret".to_string(),
+                format!("{:?}", args.command)
+            )),
         };
 
         // Retrieve the secret value
         let resp = client.get_secret_value()
-            .secret_id(secret_name)
+            .secret_id(&secret_name)
             .send()
             .await;
-        //TODO: handle potential errors more gracefully
-        let secret_value = resp.expect("Failed to get secret value. Try running 'aws sso login'.")
-            .secret_string.expect("Secret may be binary or not found");
+        let secret_value = resp?.secret_string
+            .ok_or_else(|| ArcError::InvalidSecret(
+                format!("Could not parse as string: {}", secret_name)
+            ))?;
 
         let key = "Secret Value".to_string();
         let outro_text = OutroText::single(key, secret_value.clone());
-        GoalStatus::Completed(TaskResult::AwsSecret(secret_value), outro_text)
+        Ok(GoalStatus::Completed(TaskResult::AwsSecret(secret_value), outro_text))
     }
 }
 
-async fn prompt_for_aws_secret(client: &Client) -> String {
-    let available_secrets = get_available_secrets(client).await;
+async fn prompt_for_aws_secret(client: &Client) -> Result<String, ArcError> {
+    let available_secrets = get_available_secrets(client).await?;
 
     let mut menu = select("Select a secret to retrieve?");
     for secret in &available_secrets {
         menu = menu.item(secret, secret, "");
     }
 
-    menu.interact().unwrap().to_string()
+    Ok(menu.interact().unwrap().to_string())
 }
 
-async fn get_available_secrets(client: &Client) -> Vec<String> {
+async fn get_available_secrets(client: &Client) -> Result<Vec<String>, ArcError> {
     // List secrets asynchronously
     let paginator = client.list_secrets().into_paginator();
     let pages: Vec<_> = paginator.send().collect::<Vec<_>>().await;
@@ -83,7 +86,7 @@ async fn get_available_secrets(client: &Client) -> Vec<String> {
     // Process the results
     let mut all_secrets: Vec<String> = Vec::new();
     for page_result in pages {
-        let page = page_result.unwrap();
+        let page = page_result?;
         let secrets: Vec<String> = page.secret_list()
             .iter()
             .filter_map(|e| e.name.clone())
@@ -96,5 +99,5 @@ async fn get_available_secrets(client: &Client) -> Vec<String> {
     }
 
     all_secrets.sort();
-    all_secrets
+    Ok(all_secrets)
 }

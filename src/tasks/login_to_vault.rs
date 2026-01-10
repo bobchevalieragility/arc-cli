@@ -1,14 +1,14 @@
 use async_trait::async_trait;
 use cliclack::intro;
-use std::collections::HashMap;
 use std::fs;
 use url::Url;
 use vaultrs::auth::oidc;
 use vaultrs::token;
 
-use crate::{Args, Goal, GoalStatus, OutroText};
+use crate::{Args, Goal, GoalStatus, OutroText, State};
 use crate::aws::vault;
 use crate::aws::vault::VaultInstance;
+use crate::errors::ArcError;
 use crate::tasks::{Task, TaskResult, TaskType};
 
 #[derive(Debug)]
@@ -20,26 +20,18 @@ impl Task for LoginToVaultTask {
         let _ = intro("Login to Vault");
     }
 
-    async fn execute(&self, _args: &Option<Args>, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
+    async fn execute(&self, _args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {
         // If AWS profile info is not available, we need to wait for that goal to complete
         let profile_goal = Goal::from(TaskType::SelectAwsProfile);
-        if !state.contains_key(&profile_goal) {
-            return GoalStatus::Needs(profile_goal);
+        if !state.contains(&profile_goal) {
+            return Ok(GoalStatus::Needs(profile_goal));
         }
 
         // Retrieve info about the desired AWS profile from state
-        let aws_profile_result = state.get(&profile_goal)
-            .expect("TaskResult for SelectAwsProfile not found");
-        let profile_info = match aws_profile_result {
-            TaskResult::AwsProfile { existing, updated } => {
-                updated.as_ref().or(existing.as_ref())
-                    .expect("No AWS profile available (both existing and updated are None)")
-            },
-            _ => panic!("Expected TaskResult::AwsProfile"),
-        };
-        let vault_instance = &profile_info.account.vault_instance();
+        let profile_info = state.get_aws_profile_info(&profile_goal)?;
 
         // Check for existing local Vault token
+        let vault_instance = profile_info.account.vault_instance();
         if let Some(token) = read_token_file() {
             // A local Vault token already exists, let's add it to a client to see if it is expired
             let client = vault::create_client(
@@ -53,17 +45,17 @@ impl Task for LoginToVaultTask {
                 if token_info.ttl > 0 {
                     // Existing token is still valid, so let's use it
                     let _ = cliclack::log::info("Using existing Vault token");
-                    return GoalStatus::Completed(TaskResult::VaultToken(token), OutroText::None);
+                    return Ok(GoalStatus::Completed(TaskResult::VaultToken(token), OutroText::None));
                 }
             }
         }
 
         // If we made it this far, then we need to re-login to Vault via OIDC
-        let token = vault_login(&vault_instance).await.expect("Vault login failed");
-        save_token_file(&token).expect("Failed to save token file");
+        let token = vault_login(&vault_instance).await?;
+        save_token_file(&token)?;
 
-        let _ = cliclack::log::info("Successfully logged into Vault");
-        GoalStatus::Completed(TaskResult::VaultToken(token), OutroText::None)
+        cliclack::log::info("Successfully logged into Vault")?;
+        Ok(GoalStatus::Completed(TaskResult::VaultToken(token), OutroText::None))
     }
 }
 
@@ -83,8 +75,10 @@ fn read_token_file() -> Option<String> {
     }
 }
 
-fn save_token_file(token: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let mut token_path = vault_token_path().ok_or("Unable to determine home directory")?;
+fn save_token_file(token: &str) -> Result<(), ArcError> {
+    let mut token_path = vault_token_path().ok_or_else(|| ArcError::PathError(
+        "Could not find HOME dir".to_string()
+    ))?;
     token_path.pop(); // Remove "vault_token" to get the directory
     fs::create_dir_all(&token_path)?;
     token_path.push("vault_token");
@@ -93,12 +87,12 @@ fn save_token_file(token: &str) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn vault_login(vault_instance: &VaultInstance) -> Result<String, Box<dyn std::error::Error>> {
+//TODO replace all instances of "let _ = "
+async fn vault_login(vault_instance: &VaultInstance) -> Result<String, ArcError> {
     // Start a local HTTP server to listen for the OIDC callback
     let redirect_host = "localhost:8250";
     let redirect_uri = format!("http://{}/oidc/callback", redirect_host);
-    let server = tiny_http::Server::http(redirect_host)
-        .map_err(|e| e.to_string())?;
+    let server = tiny_http::Server::http(redirect_host)?;
 
     // Retrieve the OIDC auth URL from Vault
     let client = vault::create_client(
@@ -150,9 +144,9 @@ async fn vault_login(vault_instance: &VaultInstance) -> Result<String, Box<dyn s
     Ok(token_auth.client_token)
 }
 
-fn extract_query_param(url: &Url, key: &str) -> Result<String, Box<dyn std::error::Error>> {
+fn extract_query_param(url: &Url, key: &str) -> Result<String, ArcError> {
     url.query_pairs()
         .find(|(k, _)| k == key)
         .map(|(_, value)| value.into_owned())
-        .ok_or_else(|| format!("Query parameter not found: {}", key).into())
+        .ok_or_else(|| ArcError::UrlQueryParamError(url.clone(), key.to_string()))
 }

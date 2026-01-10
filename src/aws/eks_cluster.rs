@@ -1,5 +1,6 @@
 use std::convert::From;
 
+#[derive(Debug)]
 pub enum EksCluster {
     Dev,
     Prod,

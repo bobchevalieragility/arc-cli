@@ -12,11 +12,11 @@ pub mod select_rds_instance;
 pub mod set_log_level;
 
 use async_trait::async_trait;
-use std::collections::HashMap;
 use cliclack::progress_bar;
-use crate::{Args, Goal, GoalStatus};
+use crate::{Args, GoalStatus, State};
 use crate::aws::influx::InfluxInstance;
 use crate::aws::rds::RdsInstance;
+use crate::errors::ArcError;
 use crate::tasks::get_aws_secret::GetAwsSecretTask;
 use crate::tasks::get_vault_secret::GetVaultSecretTask;
 use crate::tasks::launch_influx::LaunchInfluxTask;
@@ -33,7 +33,7 @@ use crate::tasks::set_log_level::SetLogLevelTask;
 #[async_trait]
 pub trait Task: Send + Sync {
     fn print_intro(&self);
-    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>) -> GoalStatus;
+    async fn execute(&self, args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -71,6 +71,7 @@ impl TaskType {
     }
 }
 
+#[derive(Debug)]
 pub enum TaskResult {
     ActuatorService(ActuatorService),
     //TODO just store a single AwsProfileInfo and indicate whether it was updated or not
