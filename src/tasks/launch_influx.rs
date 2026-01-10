@@ -39,14 +39,10 @@ impl Task for LaunchInfluxTask {
         // Set outro text content
         let username = secret_value["username"]
             .as_str()
-            .ok_or_else(|| ArcError::InvalidSecret(
-                "username field missing or not a string".to_string()
-            ))?;
+            .ok_or_else(|| ArcError::invalid_secret("username"))?;
         let password = secret_value["password"]
             .as_str()
-            .ok_or_else(|| ArcError::InvalidSecret(
-                "password field missing or not a string".to_string()
-            ))?;
+            .ok_or_else(|| ArcError::invalid_secret("password"))?;
 
         let outro_text = OutroText::multi(
             "Influx Credentials".to_string(),

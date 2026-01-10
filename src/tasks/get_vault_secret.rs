@@ -21,10 +21,8 @@ impl Task for GetVaultSecretTask {
 
     async fn execute(&self, args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {
         // Validate that args are present
-        let args = args.as_ref().ok_or_else(|| ArcError::InvalidArcCommand(
-            "Vault".to_string(),
-            "None".to_string()
-        ))?;
+        let args = args.as_ref()
+            .ok_or_else(|| ArcError::invalid_arc_command("Vault", "None"))?;
 
         // If AWS profile info is not available, we need to wait for that goal to complete
         let profile_goal = Goal::from(TaskType::SelectAwsProfile);
@@ -57,10 +55,7 @@ impl Task for GetVaultSecretTask {
         let secret_path = match &args.command {
             ArcCommand::Vault{ path: Some(x), .. } => x.clone(),
             ArcCommand::Vault{ path: None, .. } => prompt_for_secret_path(&client).await?,
-            _ => return Err(ArcError::InvalidArcCommand(
-                "Vault".to_string(),
-                format!("{:?}", args.command)
-            )),
+            _ => return Err(ArcError::invalid_arc_command("Vault", format!("{:?}", args.command))),
         };
 
         // Retrieve the secret key-value pairs from Vault
@@ -91,10 +86,7 @@ impl Task for GetVaultSecretTask {
                 let outro_msg = OutroText::multi(prompt, full_secret.clone());
                 (full_secret, outro_msg)
             },
-            _ => return Err(ArcError::InvalidArcCommand(
-                "Vault".to_string(),
-                format!("{:?}", args.command)
-            )),
+            _ => return Err(ArcError::invalid_arc_command("Vault", format!("{:?}", args.command))),
         };
 
         Ok(GoalStatus::Completed(TaskResult::VaultSecret, outro_text))

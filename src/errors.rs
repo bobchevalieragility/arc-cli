@@ -32,7 +32,7 @@ pub enum ArcError {
     #[error("Expected: {0}, actual: {1}")]
     InvalidArcCommand(String, String),
 
-    #[error("Invalid secret: {0}")]
+    #[error("Secret field missing or not a string: {0}")]
     InvalidSecret(String),
 
     #[error("Invalid TaskResult for goal: {0}. Expected: {1}, Actual: {2}")]
@@ -56,11 +56,14 @@ pub enum ArcError {
     #[error("Unable to lookup Kube Service spec: {0}")]
     KubeServiceSpecError(String),
 
-    #[error("Path error: {0}")]
-    PathError(String),
+    #[error("Could not determine home directory")]
+    HomeDirError,
 
     #[error("Tokio Join error: {0}")]
     TokioJoinError(#[from] tokio::task::JoinError),
+
+    #[error("Unable to parse secret as string: {0}")]
+    UnparseableSecret(String),
 
     #[error("URL Parse error: {0}")]
     UrlParseError(#[from] url::ParseError),
@@ -73,4 +76,26 @@ pub enum ArcError {
 
     #[error("YAML error: {0}")]
     YamlError(#[from] serde_yaml::Error),
+}
+
+impl ArcError {
+    pub fn insufficient_state(goal: impl Into<String>) -> Self {
+        ArcError::InsufficientState(goal.into())
+    }
+
+    pub fn invalid_arc_command(expected: impl Into<String>, actual: impl Into<String>) -> Self {
+        ArcError::InvalidArcCommand(expected.into(), actual.into())
+    }
+
+    pub fn invalid_secret(field: impl Into<String>) -> Self {
+        ArcError::InvalidSecret(field.into())
+    }
+
+    pub fn invalid_state(goal: impl Into<String>, expected: impl Into<String>, actual: impl Into<String>) -> Self {
+        ArcError::InvalidState(goal.into(), expected.into(), actual.into())
+    }
+
+    pub fn kube_context_error(msg: impl Into<String>) -> Self {
+        ArcError::KubeContextError(msg.into())
+    }
 }

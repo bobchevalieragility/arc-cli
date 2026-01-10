@@ -105,6 +105,12 @@ impl TaskResult {
     }
 }
 
+impl From<&TaskResult> for String {
+    fn from(result: &TaskResult) -> Self {
+        format!("{:?}", result)
+    }
+}
+
 pub async fn sleep_indicator(seconds: u64, start_msg: &str, end_msg: &str) {
     let progress = progress_bar(seconds).with_spinner_template();
     progress.start(start_msg);

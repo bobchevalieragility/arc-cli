@@ -77,9 +77,7 @@ fn read_token_file() -> Option<String> {
 }
 
 fn save_token_file(token: &str) -> Result<(), ArcError> {
-    let mut token_path = vault_token_path().ok_or_else(|| ArcError::PathError(
-        "Could not find HOME dir".to_string()
-    ))?;
+    let mut token_path = vault_token_path().ok_or_else(|| ArcError::HomeDirError)?;
     token_path.pop(); // Remove "vault_token" to get the directory
     fs::create_dir_all(&token_path)?;
     token_path.push("vault_token");

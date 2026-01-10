@@ -19,18 +19,13 @@ impl Task for SetLogLevelTask {
 
     async fn execute(&self, args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {
         // Validate that args are present
-        let args = args.as_ref().ok_or_else(|| ArcError::InvalidArcCommand(
-            "LogLevel".to_string(),
-            "None".to_string()
-        ))?;
+        let args = args.as_ref()
+            .ok_or_else(|| ArcError::invalid_arc_command("LogLevel", "None"))?;
 
         // Extract the optional service name from args
         let service_arg = match &args.command {
             ArcCommand::LogLevel{ service, .. } => service,
-            _ => return Err(ArcError::InvalidArcCommand(
-                "LogLevel".to_string(),
-                format!("{:?}", args.command)
-            )),
+            _ => return Err(ArcError::invalid_arc_command("LogLevel", format!("{:?}", args.command))),
         };
 
         let svc_selection_goal = Goal::from(TaskType::SelectActuatorService);
@@ -59,10 +54,7 @@ impl Task for SetLogLevelTask {
         // Extract parameters from args
         let (package, display_only) = match &args.command {
             ArcCommand::LogLevel{ package, display_only, .. } => (package, display_only),
-            _ => return Err(ArcError::InvalidArcCommand(
-                "LogLevel".to_string(),
-                format!("{:?}", args.command)
-            )),
+            _ => return Err(ArcError::invalid_arc_command("LogLevel", format!("{:?}", args.command))),
         };
 
         let outro_text = if *display_only {
@@ -73,10 +65,7 @@ impl Task for SetLogLevelTask {
             let level = match &args.command {
                 ArcCommand::LogLevel{ level: Some(level), .. } => level.clone(),
                 ArcCommand::LogLevel{ level: None, .. } => prompt_for_log_level(),
-                _ => return Err(ArcError::InvalidArcCommand(
-                    "LogLevel".to_string(),
-                    format!("{:?}", args.command)
-                )),
+                _ => return Err(ArcError::invalid_arc_command("LogLevel", format!("{:?}", args.command))),
             };
 
             set_log_level(package, port_fwd_info.local_port, &level).await

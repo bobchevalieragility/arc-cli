@@ -23,10 +23,8 @@ impl Task for SelectAwsProfileTask {
     async fn execute(&self, args: &Option<Args>, _state: &State) -> Result<GoalStatus, ArcError> {
         //TODO Cannot switch to sandbox profile
         // Validate that args are present
-        let args = args.as_ref().ok_or_else(|| ArcError::InvalidArcCommand(
-            "Switch".to_string(),
-            "None".to_string()
-        ))?;
+        let args = args.as_ref()
+            .ok_or_else(|| ArcError::invalid_arc_command("Switch", "None"))?;
 
         if let ArcCommand::Switch{ use_current: true, .. } = &args.command {
             // User wants to use current AWS_PROFILE, if it's already set

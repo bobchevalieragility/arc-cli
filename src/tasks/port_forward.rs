@@ -25,10 +25,8 @@ impl Task for PortForwardTask {
 
     async fn execute(&self, args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {
         // Validate that args are present
-        let args = args.as_ref().ok_or_else(|| ArcError::InvalidArcCommand(
-            "PortForward".to_string(),
-            "None".to_string()
-        ))?;
+        let args = args.as_ref()
+            .ok_or_else(|| ArcError::invalid_arc_command("PortForward", "None"))?;
 
         // If Kube context has not been selected, we need to wait for that goal to complete
         let context_goal = Goal::from(TaskType::SelectKubeContext);
@@ -67,8 +65,8 @@ impl Task for PortForwardTask {
         let local_port: u16 = match &args.command {
             ArcCommand::PortForward{ port: Some(p), .. } => *p,
             ArcCommand::PortForward{ port: None, .. } => find_available_port().await?,
-            _ => return Err(ArcError::InvalidArcCommand(
-                "PortForward".to_string(),
+            _ => return Err(ArcError::invalid_arc_command(
+                "PortForward",
                 format!("{:?}", args.command)
             )),
         };

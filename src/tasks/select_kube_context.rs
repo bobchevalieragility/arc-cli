@@ -21,10 +21,8 @@ impl Task for SelectKubeContextTask {
     async fn execute(&self, args: &Option<Args>, _state: &State) -> Result<GoalStatus, ArcError> {
         //TODO Cannot switch to platform-dev-uw2 context
         // Validate that args are present
-        let args = args.as_ref().ok_or_else(|| ArcError::InvalidArcCommand(
-            "Switch".to_string(),
-            "None".to_string()
-        ))?;
+        let args = args.as_ref()
+            .ok_or_else(|| ArcError::invalid_arc_command("Switch", "None"))?;
 
         if let ArcCommand::Switch{ use_current: true, .. } = &args.command {
             if let Ok(current_kubeconfig) = env::var("KUBECONFIG") {
@@ -32,7 +30,7 @@ impl Task for SelectKubeContextTask {
                 let config = Kubeconfig::read_from(&kube_path)?;
                 let current_context = config.current_context
                     .as_ref()
-                    .ok_or_else(|| ArcError::KubeContextError("Current context not set".to_string()))?;
+                    .ok_or_else(|| ArcError::kube_context_error("Current context not set"))?;
 
                 // Find the cluster associated with the current context
                 let eks_cluster = get_cluster(current_context, &config)?;
@@ -45,9 +43,7 @@ impl Task for SelectKubeContextTask {
         }
 
         // Read the master kubeconfig file
-        let kube_path = default_kube_path().ok_or_else(|| ArcError::PathError(
-            "Could not find HOME dir".to_string()
-        ))?;
+        let kube_path = default_kube_path().ok_or_else(|| ArcError::HomeDirError)?;
         let mut config = Kubeconfig::read_from(kube_path)?;
 
         // Prompt user to select a kubernetes context

@@ -19,11 +19,8 @@ impl Task for GetAwsSecretTask {
 
     async fn execute(&self, args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {
         // Validate that args are present
-        //TODO see if InvalidArcCommand can accept &str instead of String (implicit conversions?)
-        let args = args.as_ref().ok_or_else(|| ArcError::InvalidArcCommand(
-            "AwsSecret".to_string(),
-            "None".to_string()
-        ))?;
+        let args = args.as_ref()
+            .ok_or_else(|| ArcError::invalid_arc_command("AwsSecret", "None"))?;
 
         // If AWS profile info is not available, we need to wait for that goal to complete
         let profile_goal = Goal::from(TaskType::SelectAwsProfile);
@@ -46,10 +43,7 @@ impl Task for GetAwsSecretTask {
         let secret_name = match &args.command {
             ArcCommand::AwsSecret{ name: Some(x) } => x.clone(),
             ArcCommand::AwsSecret{ name: None } => prompt_for_aws_secret(&client).await?,
-            _ => return Err(ArcError::InvalidArcCommand(
-                "AwsSecret".to_string(),
-                format!("{:?}", args.command)
-            )),
+            _ => return Err(ArcError::invalid_arc_command("AwsSecret", format!("{:?}", args.command))),
         };
 
         // Retrieve the secret value
@@ -58,9 +52,7 @@ impl Task for GetAwsSecretTask {
             .send()
             .await;
         let secret_value = resp?.secret_string
-            .ok_or_else(|| ArcError::InvalidSecret(
-                format!("Could not parse as string: {}", secret_name)
-            ))?;
+            .ok_or_else(|| ArcError::UnparseableSecret(secret_name))?;
 
         let key = "Secret Value".to_string();
         let outro_text = OutroText::single(key, secret_value.clone());

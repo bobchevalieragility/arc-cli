@@ -38,9 +38,7 @@ impl Task for RunPgcliTask {
 
         let username = secret_value["username"]
             .as_str()
-            .ok_or_else(|| ArcError::InvalidSecret(
-                "username field missing or not a string".to_string()
-            ))?;
+            .ok_or_else(|| ArcError::invalid_secret("username"))?;
 
         let cmd = format!(
             "export PGPASSWORD={}\npgcli -h {} -U {}",

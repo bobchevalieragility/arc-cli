@@ -161,6 +161,12 @@ impl From<TaskType> for Goal {
     }
 }
 
+impl From<&Goal> for String {
+    fn from(goal: &Goal) -> Self {
+        format!("{:?}", goal)
+    }
+}
+
 pub async fn run(args: &Args) -> Result<(), ArcError> {
     // A given Args with a single ArcCommand may map to multiple goals
     // (e.g., Switch may require both AWS profile and Kube context selection)
@@ -273,28 +279,20 @@ impl State {
     }
 
     fn get(&self, goal: &Goal) -> Result<&TaskResult, ArcError> {
-        self.results.get(goal).ok_or_else(|| ArcError::InsufficientState(format!("{:?}", goal)))
+        self.results.get(goal).ok_or_else(|| ArcError::insufficient_state(goal))
     }
+
     pub(crate) fn get_actuator_service(&self, goal: &Goal) -> Result<&ActuatorService, ArcError> {
         match self.get(goal)? {
             TaskResult::ActuatorService(x) => Ok(x),
-            //TODO create an InvalidState constructor?
-            result => Err(ArcError::InvalidState(
-                format!("{:?}", goal),
-                "ActuatorService".to_string(),
-                format!("{:?}", result)
-            )),
+            result => Err(ArcError::invalid_state(goal, "ActuatorService", result)),
         }
     }
 
     pub(crate) fn get_aws_profile_info(&self, goal: &Goal) -> Result<&AwsProfileInfo, ArcError> {
         match self.get(goal)? {
             TaskResult::AwsProfile { profile, .. } => Ok(profile),
-            result => Err(ArcError::InvalidState(
-                format!("{:?}", goal),
-                "AwsProfile".to_string(),
-                format!("{:?}", result)
-            )),
+            result => Err(ArcError::invalid_state(goal, "AwsProfile", result)),
         }
     }
 
@@ -304,66 +302,42 @@ impl State {
                 let secret_json: serde_json::error::Result<Value> = serde_json::from_str(x);
                 Ok(secret_json?)
             },
-            result => Err(ArcError::InvalidState(
-                format!("{:?}", goal),
-                "AwsSecret".to_string(),
-                format!("{:?}", result)
-            )),
+            result => Err(ArcError::invalid_state(goal, "AwsSecret", result)),
         }
     }
 
     pub(crate) fn get_influx_instance(&self, goal: &Goal) -> Result<&InfluxInstance, ArcError> {
         match self.get(goal)? {
             TaskResult::InfluxInstance(x) => Ok(x),
-            result => Err(ArcError::InvalidState(
-                format!("{:?}", goal),
-                "InfluxInstance".to_string(),
-                format!("{:?}", result)
-            )),
+            result => Err(ArcError::invalid_state(goal, "InfluxInstance", result)),
         }
     }
 
     pub(crate) fn get_kube_context_info(&self, goal: &Goal) -> Result<&KubeContextInfo, ArcError> {
         match self.get(goal)? {
             TaskResult::KubeContext { context, .. } => Ok(context),
-            result => Err(ArcError::InvalidState(
-                format!("{:?}", goal),
-                "KubeContext".to_string(),
-                format!("{:?}", result)
-            )),
+            result => Err(ArcError::invalid_state(goal, "KubeContext", result)),
         }
     }
 
     pub(crate) fn get_port_forward_info(&self, goal: &Goal) -> Result<&PortForwardInfo, ArcError> {
         match self.get(goal)? {
             TaskResult::PortForward(info) => Ok(info),
-            result => Err(ArcError::InvalidState(
-                format!("{:?}", goal),
-                "PortForward".to_string(),
-                format!("{:?}", result)
-            )),
+            result => Err(ArcError::invalid_state(goal, "PortForward", result)),
         }
     }
 
     pub(crate) fn get_rds_instance(&self, goal: &Goal) -> Result<&RdsInstance, ArcError> {
         match self.get(goal)? {
             TaskResult::RdsInstance(x) => Ok(x),
-            result => Err(ArcError::InvalidState(
-                format!("{:?}", goal),
-                "RdsInstance".to_string(),
-                format!("{:?}", result)
-            )),
+            result => Err(ArcError::invalid_state(goal, "RdsInstance", result)),
         }
     }
 
     pub(crate) fn get_vault_token(&self, goal: &Goal) -> Result<String, ArcError> {
         match self.get(goal)? {
             TaskResult::VaultToken(x) => Ok(x.clone()),
-            result => Err(ArcError::InvalidState(
-                format!("{:?}", goal),
-                "VaultToken".to_string(),
-                format!("{:?}", result)
-            )),
+            result => Err(ArcError::invalid_state(goal, "VaultToken", result)),
         }
     }
 }
