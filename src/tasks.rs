@@ -74,12 +74,11 @@ impl TaskType {
 #[derive(Debug)]
 pub enum TaskResult {
     ActuatorService(ActuatorService),
-    //TODO just store a single AwsProfileInfo and indicate whether it was updated or not
-    AwsProfile{ existing: Option<AwsProfileInfo>, updated: Option<AwsProfileInfo> },
+    AwsProfile{ profile: AwsProfileInfo, updated: bool },
     AwsSecret(String),
     InfluxCommand,
     InfluxInstance(InfluxInstance),
-    KubeContext{ existing: Option<KubeContextInfo>, updated: Option<KubeContextInfo> },
+    KubeContext{ context: KubeContextInfo, updated: bool },
     LogLevel,
     PgcliCommand(String),
     PortForward(PortForwardInfo),
@@ -91,15 +90,15 @@ pub enum TaskResult {
 impl TaskResult {
     pub fn eval_string(&self) -> Option<String> {
         match self {
-            TaskResult::AwsProfile{ existing: _, updated: Some(AwsProfileInfo { name, .. }) } => {
-                Some(String::from(format!("export AWS_PROFILE={name}\n")))
+            TaskResult::AwsProfile{ profile: AwsProfileInfo { name, .. }, updated: true } => {
+                Some(format!("export AWS_PROFILE={name}\n"))
             },
-            TaskResult::KubeContext{ existing: _, updated: Some(KubeContextInfo { kubeconfig, .. }) } => {
+            TaskResult::KubeContext{ context: KubeContextInfo { kubeconfig, .. }, updated: true } => {
                 let path = kubeconfig.to_string_lossy();
-                Some(String::from(format!("export KUBECONFIG={path}\n")))
+                Some(format!("export KUBECONFIG={path}\n"))
             },
             TaskResult::PgcliCommand(cmd) => {
-                Some(String::from(format!("{cmd}\n")))
+                Some(format!("{cmd}\n"))
             },
             _ => None,
         }

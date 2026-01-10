@@ -278,6 +278,7 @@ impl State {
     pub(crate) fn get_actuator_service(&self, goal: &Goal) -> Result<&ActuatorService, ArcError> {
         match self.get(goal)? {
             TaskResult::ActuatorService(x) => Ok(x),
+            //TODO create an InvalidState constructor?
             result => Err(ArcError::InvalidState(
                 format!("{:?}", goal),
                 "ActuatorService".to_string(),
@@ -288,14 +289,7 @@ impl State {
 
     pub(crate) fn get_aws_profile_info(&self, goal: &Goal) -> Result<&AwsProfileInfo, ArcError> {
         match self.get(goal)? {
-            TaskResult::AwsProfile { existing, updated } => {
-                updated.as_ref().or(existing.as_ref())
-                    .ok_or_else(|| ArcError::InvalidState(
-                        format!("{:?}", goal),
-                        "AwsProfileInfo w/at least one value".to_string(),
-                        "both existing and updated are None".to_string()
-                    ))
-            },
+            TaskResult::AwsProfile { profile, .. } => Ok(profile),
             result => Err(ArcError::InvalidState(
                 format!("{:?}", goal),
                 "AwsProfile".to_string(),
@@ -331,14 +325,7 @@ impl State {
 
     pub(crate) fn get_kube_context_info(&self, goal: &Goal) -> Result<&KubeContextInfo, ArcError> {
         match self.get(goal)? {
-            TaskResult::KubeContext { existing, updated } => {
-                updated.as_ref().or(existing.as_ref())
-                    .ok_or_else(|| ArcError::InvalidState(
-                        format!("{:?}", goal),
-                        "KubeContextInfo w/at least one value".to_string(),
-                        "both existing and updated are None".to_string()
-                    ))
-            },
+            TaskResult::KubeContext { context, .. } => Ok(context),
             result => Err(ArcError::InvalidState(
                 format!("{:?}", goal),
                 "KubeContext".to_string(),

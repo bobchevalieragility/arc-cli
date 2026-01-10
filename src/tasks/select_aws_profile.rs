@@ -35,7 +35,7 @@ impl Task for SelectAwsProfileTask {
                 let info = AwsProfileInfo::new(current_profile, account);
                 let key = "Using current AWS profile".to_string();
                 let outro_text = OutroText::single(key, info.name.clone());
-                let task_result = TaskResult::AwsProfile{ existing: Some(info), updated: None };
+                let task_result = TaskResult::AwsProfile{ profile: info, updated: false };
                 return Ok(GoalStatus::Completed(task_result, outro_text));
             }
         }
@@ -50,7 +50,7 @@ impl Task for SelectAwsProfileTask {
         // Create task result
         let account_id = get_aws_account(&selected_aws_profile).await?;
         let info = AwsProfileInfo::new(selected_aws_profile, account_id);
-        let task_result = TaskResult::AwsProfile{ existing: None, updated: Some(info) };
+        let task_result = TaskResult::AwsProfile{ profile: info, updated: true };
 
         Ok(GoalStatus::Completed(task_result, outro_text))
     }

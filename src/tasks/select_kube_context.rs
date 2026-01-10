@@ -37,7 +37,7 @@ impl Task for SelectKubeContextTask {
                 // Find the cluster associated with the current context
                 let eks_cluster = get_cluster(current_context, &config)?;
                 let info = KubeContextInfo::new(eks_cluster, kube_path);
-                let task_result = TaskResult::KubeContext{ existing: Some(info), updated: None };
+                let task_result = TaskResult::KubeContext{ context: info, updated: false };
                 let key = "Using current Kube Context".to_string();
                 let outro_text = OutroText::single(key, current_context.clone());
                 return Ok(GoalStatus::Completed(task_result, outro_text))
@@ -77,7 +77,7 @@ impl Task for SelectKubeContextTask {
 
         // Create task result
         let info = KubeContextInfo::new(eks_cluster, tmp_kube_path);
-        let task_result = TaskResult::KubeContext{ existing: None, updated: Some(info) };
+        let task_result = TaskResult::KubeContext{ context: info, updated: true };
 
         Ok(GoalStatus::Completed(task_result, outro_text))
     }
