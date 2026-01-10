@@ -10,6 +10,7 @@ pub enum EksCluster {
 
 impl From<&str> for EksCluster {
     fn from(cluster_name: &str) -> Self {
+        //TODO Should we add the non-tailscale clusters?
         match cluster_name {
             "tailscale-operator-platform-dev-uw2.tail5a6c.ts.net" => EksCluster::Dev,
             // "arn:aws:eks:us-west-2:983257951706:cluster/platform-dev-uw2" => EksCluster::Dev,
