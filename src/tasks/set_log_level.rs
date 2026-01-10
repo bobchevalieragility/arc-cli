@@ -23,15 +23,26 @@ impl Task for SetLogLevelTask {
             "None".to_string()
         ))?;
 
-        // If a service has not yet been selected, we need to wait for that goal to complete
-        //TODO We are not allowing the the user to specify the service via args here
+        // Extract the optional service name from args
+        let service_arg = match &args.command {
+            ArcCommand::LogLevel{ service, .. } => service,
+            _ => return Err(ArcError::InvalidArcCommand(
+                "LogLevel".to_string(),
+                format!("{:?}", args.command)
+            )),
+        };
+
         let svc_selection_goal = Goal::from(TaskType::SelectActuatorService);
-        if !state.contains(&svc_selection_goal) {
+        if let None = service_arg && !state.contains(&svc_selection_goal) {
+            // Since service name not provided in args, we need to wait for service selection goal
             return Ok(GoalStatus::Needs(svc_selection_goal));
         }
 
-        // Retrieve selected service name from state
-        let service = state.get_actuator_service(&svc_selection_goal)?.name().to_string();
+        // Identify service name either from args or the service selection task result
+        let service = match service_arg {
+            Some(x) => x.to_string(),
+            None => state.get_actuator_service(&svc_selection_goal)?.name().to_string()
+        };
 
         // If a port-forwarding session doesn't exist, we need to wait for that goal to complete
         let port_fwd_goal = Goal::new(PortForward, Some(Args {
