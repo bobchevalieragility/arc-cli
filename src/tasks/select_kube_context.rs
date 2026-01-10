@@ -13,8 +13,9 @@ pub struct SelectKubeContextTask;
 
 #[async_trait]
 impl Task for SelectKubeContextTask {
-    fn print_intro(&self) {
-        let _ = intro("Switch Kube Context");
+    fn print_intro(&self) -> Result<(), ArcError> {
+        intro("Switch Kube Context")?;
+        Ok(())
     }
 
     async fn execute(&self, args: &Option<Args>, _state: &State) -> Result<GoalStatus, ArcError> {

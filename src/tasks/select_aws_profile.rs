@@ -15,8 +15,9 @@ pub struct SelectAwsProfileTask;
 
 #[async_trait]
 impl Task for SelectAwsProfileTask {
-    fn print_intro(&self) {
-        let _ = intro("Switch AWS Profile");
+    fn print_intro(&self) -> Result<(), ArcError> {
+        intro("Switch AWS Profile")?;
+        Ok(())
     }
 
     async fn execute(&self, args: &Option<Args>, _state: &State) -> Result<GoalStatus, ArcError> {

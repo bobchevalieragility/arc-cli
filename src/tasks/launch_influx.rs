@@ -10,8 +10,9 @@ pub struct LaunchInfluxTask;
 
 #[async_trait]
 impl Task for LaunchInfluxTask {
-    fn print_intro(&self) {
-        let _ = intro("Launch Influx UI");
+    fn print_intro(&self) -> Result<(), ArcError> {
+        intro("Launch Influx UI")?;
+        Ok(())
     }
 
     async fn execute(&self, _args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {

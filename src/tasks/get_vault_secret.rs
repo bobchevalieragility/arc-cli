@@ -14,8 +14,9 @@ pub struct GetVaultSecretTask;
 
 #[async_trait]
 impl Task for GetVaultSecretTask {
-    fn print_intro(&self) {
-        let _ = intro("Get Vault Secret");
+    fn print_intro(&self) -> Result<(), ArcError> {
+        intro("Get Vault Secret")?;
+        Ok(())
     }
 
     async fn execute(&self, args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {

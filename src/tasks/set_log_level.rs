@@ -12,8 +12,9 @@ pub struct SetLogLevelTask;
 
 #[async_trait]
 impl Task for SetLogLevelTask {
-    fn print_intro(&self) {
-        let _ = intro("Log Level");
+    fn print_intro(&self) -> Result<(), ArcError> {
+        intro("Log Level")?;
+        Ok(())
     }
 
     async fn execute(&self, args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {

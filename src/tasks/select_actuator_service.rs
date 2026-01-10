@@ -9,8 +9,9 @@ pub struct SelectActuatorServiceTask;
 
 #[async_trait]
 impl Task for SelectActuatorServiceTask {
-    fn print_intro(&self) {
-        let _ = intro("Select Actuator Service");
+    fn print_intro(&self) -> Result<(), ArcError> {
+        intro("Select Actuator Service")?;
+        Ok(())
     }
 
     async fn execute(&self, _args: &Option<Args>, _state: &State) -> Result<GoalStatus, ArcError> {

@@ -10,8 +10,9 @@ pub struct RunPgcliTask;
 
 #[async_trait]
 impl Task for RunPgcliTask {
-    fn print_intro(&self) {
-        let _ = intro("Run pgcli");
+    fn print_intro(&self) -> Result<(), ArcError> {
+        intro("Run pgcli")?;
+        Ok(())
     }
 
     async fn execute(&self, _args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {

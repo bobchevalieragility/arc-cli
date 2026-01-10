@@ -10,8 +10,9 @@ pub struct SelectRdsInstanceTask;
 
 #[async_trait]
 impl Task for SelectRdsInstanceTask {
-    fn print_intro(&self) {
-        let _ = intro("Select RDS Instance");
+    fn print_intro(&self) -> Result<(), ArcError> {
+        intro("Select RDS Instance")?;
+        Ok(())
     }
 
     async fn execute(&self, _args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {

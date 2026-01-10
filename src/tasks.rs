@@ -32,7 +32,7 @@ use crate::tasks::set_log_level::SetLogLevelTask;
 
 #[async_trait]
 pub trait Task: Send + Sync {
-    fn print_intro(&self);
+    fn print_intro(&self) -> Result<(), ArcError>;
     async fn execute(&self, args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError>;
 }
 

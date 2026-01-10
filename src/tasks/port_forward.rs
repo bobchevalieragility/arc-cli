@@ -18,8 +18,9 @@ pub struct PortForwardTask;
 
 #[async_trait]
 impl Task for PortForwardTask {
-    fn print_intro(&self) {
-        let _ = intro("Port Forward");
+    fn print_intro(&self) -> Result<(), ArcError> {
+        intro("Port Forward")?;
+        Ok(())
     }
 
     async fn execute(&self, args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {

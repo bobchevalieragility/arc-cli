@@ -12,8 +12,9 @@ pub struct GetAwsSecretTask;
 
 #[async_trait]
 impl Task for GetAwsSecretTask {
-    fn print_intro(&self) {
-        let _ = intro("Get AWS Secret");
+    fn print_intro(&self) -> Result<(), ArcError> {
+        intro("Get AWS Secret")?;
+        Ok(())
     }
 
     async fn execute(&self, args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {

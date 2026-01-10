@@ -213,7 +213,7 @@ async fn execute_goals(terminal_goals: Vec<Goal>) -> Result<(), ArcError> {
 
         // Determine if this is one of the original, user-requested goals
         if *is_terminal_goal && !intros.contains(next_goal) {
-            task.print_intro();
+            task.print_intro()?;
             intros.insert(next_goal.clone());
         }
 

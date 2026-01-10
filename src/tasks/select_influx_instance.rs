@@ -10,8 +10,9 @@ pub struct SelectInfluxInstanceTask;
 
 #[async_trait]
 impl Task for SelectInfluxInstanceTask {
-    fn print_intro(&self) {
-        let _ = intro("Select InfluxDB Instance");
+    fn print_intro(&self) -> Result<(), ArcError> {
+        intro("Select InfluxDB Instance")?;
+        Ok(())
     }
 
     async fn execute(&self, _args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {

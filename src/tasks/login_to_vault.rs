@@ -16,8 +16,9 @@ pub struct LoginToVaultTask;
 
 #[async_trait]
 impl Task for LoginToVaultTask {
-    fn print_intro(&self) {
-        let _ = intro("Login to Vault");
+    fn print_intro(&self) -> Result<(), ArcError> {
+        intro("Login to Vault")?;
+        Ok(())
     }
 
     async fn execute(&self, _args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {
