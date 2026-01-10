@@ -1,13 +1,22 @@
 mod aws;
+mod errors;
 mod tasks;
 
 use std::convert::From;
 use std::collections::{HashMap, HashSet};
 use clap::{Parser, Subcommand};
 use cliclack::{outro, outro_note};
-use console::{style, StyledObject};
+use console::style;
+use serde_json::Value;
+use crate::aws::influx::InfluxInstance;
+use crate::aws::rds::RdsInstance;
+use crate::errors::ArcError;
 use crate::OutroText::{MultiLine, SingleLine};
 use crate::tasks::{TaskResult, TaskType};
+use crate::tasks::port_forward::PortForwardInfo;
+use crate::tasks::select_actuator_service::ActuatorService;
+use crate::tasks::select_aws_profile::AwsProfileInfo;
+use crate::tasks::select_kube_context::KubeContextInfo;
 use crate::tasks::set_log_level::Level;
 
 #[derive(Parser, Clone, Debug, PartialEq, Eq, Hash)]
@@ -110,7 +119,7 @@ impl Args {
 }
 
 //TODO move Goal into it's own module to force callers to use the Goal::new or Goal::new_terminal constructors
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct Goal {
     task_type: TaskType,
     args: Option<Args>,
@@ -152,13 +161,19 @@ impl From<TaskType> for Goal {
     }
 }
 
-pub async fn run(args: &Args) {
+impl From<&Goal> for String {
+    fn from(goal: &Goal) -> Self {
+        format!("{:?}", goal)
+    }
+}
+
+pub async fn run(args: &Args) -> Result<(), ArcError> {
     // A given Args with a single ArcCommand may map to multiple goals
     // (e.g., Switch may require both AWS profile and Kube context selection)
     let terminal_goals = Args::to_goals(args);
 
     // Execute each goal, including any dependent goals
-    execute_goals(terminal_goals).await;
+    execute_goals(terminal_goals).await
 }
 
 enum GoalStatus {
@@ -181,17 +196,20 @@ impl OutroText {
     }
 }
 
-async fn execute_goals(terminal_goals: Vec<Goal>) {
+async fn execute_goals(terminal_goals: Vec<Goal>) -> Result<(), ArcError> {
     let mut goals = terminal_goals.clone();
     let mut eval_string = String::new();
-    let mut state: HashMap<Goal, TaskResult> = HashMap::new();
+    // let mut state: HashMap<Goal, TaskResult> = HashMap::new();
+    let mut state = State::new();
     let mut intros: HashSet<Goal> = HashSet::new();
 
     // Process goals until there are none left, peeking and processing before popping
-    while let Some(Goal { task_type, args, is_terminal_goal }) = goals.last() {
+    while let Some(next_goal) = goals.last() {
+        let Goal { task_type, args, is_terminal_goal } = next_goal;
+
         // Check to see if the goal has already been completed. While unlikely,
         // it's possible if multiple goals depend on the same sub-goal.
-        if state.contains_key(&goals.last().unwrap()) {
+        if state.contains(next_goal) {
             goals.pop();
             continue;
         }
@@ -200,30 +218,29 @@ async fn execute_goals(terminal_goals: Vec<Goal>) {
         let task = task_type.to_task();
 
         // Determine if this is one of the original, user-requested goals
-        if *is_terminal_goal && !intros.contains(&goals.last().unwrap()) {
-            task.print_intro();
-            intros.insert(goals.last().unwrap().clone());
+        if *is_terminal_goal && !intros.contains(next_goal) {
+            task.print_intro()?;
+            intros.insert(next_goal.clone());
         }
 
         // Attempt to complete the next goal on the stack
-        let goal_result = task_type.to_task().execute(args, &state).await;
+        let goal_result = task.execute(args, &state).await;
 
         // If next goal indicates that it needs the result of a dependent goal, then add the
         // dependent goal onto the stack, leaving the original goal to be executed at a later time.
         // Otherwise, pop the goal from the stack and store its result in the state.
-        match goal_result {
+        match goal_result? {
             GoalStatus::Needs(dependent_goal) => goals.push(dependent_goal),
             GoalStatus::Completed(result, outro_text) => {
                 if *is_terminal_goal {
                     // Print outro message
                     if let SingleLine{ key, value } = outro_text {
                         let text = format!("{}: {}", style(key).green(), style(value).dim());
-                        let _ = outro(text);
+                        outro(text)?;
                     } else if let MultiLine{ key, value } = outro_text {
                         let prompt = style(key).green();
                         let message = style(value).dim();
-                        let _ = outro_note(prompt, message);
-
+                        outro_note(prompt, message)?;
                     }
                 }
 
@@ -241,14 +258,86 @@ async fn execute_goals(terminal_goals: Vec<Goal>) {
 
     // This is the final output that the parent shell should eval.
     // All other program outputs are sent to stderr (i.e. clickack interactive menus, outros, etc).
-    println!("{eval_string}");
+    Ok(println!("{eval_string}"))
 }
 
-pub fn color_output(output: &str, is_terminal_goal: bool) -> StyledObject<&str> {
-    if is_terminal_goal {
-        style(output).green()
-    } else {
-        style(output).blue()
+pub struct State {
+    results: HashMap<Goal, TaskResult>,
+}
+
+impl State {
+    fn new() -> Self {
+        State { results: HashMap::new() }
+    }
+
+    fn contains(&self, goal: &Goal) -> bool {
+        self.results.contains_key(goal)
+    }
+
+    fn insert(&mut self, goal: Goal, result: TaskResult) {
+        self.results.insert(goal, result);
+    }
+
+    fn get(&self, goal: &Goal) -> Result<&TaskResult, ArcError> {
+        self.results.get(goal).ok_or_else(|| ArcError::insufficient_state(goal))
+    }
+
+    pub(crate) fn get_actuator_service(&self, goal: &Goal) -> Result<&ActuatorService, ArcError> {
+        match self.get(goal)? {
+            TaskResult::ActuatorService(x) => Ok(x),
+            result => Err(ArcError::invalid_state(goal, "ActuatorService", result)),
+        }
+    }
+
+    pub(crate) fn get_aws_profile_info(&self, goal: &Goal) -> Result<&AwsProfileInfo, ArcError> {
+        match self.get(goal)? {
+            TaskResult::AwsProfile { profile, .. } => Ok(profile),
+            result => Err(ArcError::invalid_state(goal, "AwsProfile", result)),
+        }
+    }
+
+    pub(crate) fn get_aws_secret(&self, goal: &Goal) -> Result<Value, ArcError> {
+        match self.get(goal)? {
+            TaskResult::AwsSecret(x) => {
+                let secret_json: serde_json::error::Result<Value> = serde_json::from_str(x);
+                Ok(secret_json?)
+            },
+            result => Err(ArcError::invalid_state(goal, "AwsSecret", result)),
+        }
+    }
+
+    pub(crate) fn get_influx_instance(&self, goal: &Goal) -> Result<&InfluxInstance, ArcError> {
+        match self.get(goal)? {
+            TaskResult::InfluxInstance(x) => Ok(x),
+            result => Err(ArcError::invalid_state(goal, "InfluxInstance", result)),
+        }
+    }
+
+    pub(crate) fn get_kube_context_info(&self, goal: &Goal) -> Result<&KubeContextInfo, ArcError> {
+        match self.get(goal)? {
+            TaskResult::KubeContext { context, .. } => Ok(context),
+            result => Err(ArcError::invalid_state(goal, "KubeContext", result)),
+        }
+    }
+
+    pub(crate) fn get_port_forward_info(&self, goal: &Goal) -> Result<&PortForwardInfo, ArcError> {
+        match self.get(goal)? {
+            TaskResult::PortForward(info) => Ok(info),
+            result => Err(ArcError::invalid_state(goal, "PortForward", result)),
+        }
+    }
+
+    pub(crate) fn get_rds_instance(&self, goal: &Goal) -> Result<&RdsInstance, ArcError> {
+        match self.get(goal)? {
+            TaskResult::RdsInstance(x) => Ok(x),
+            result => Err(ArcError::invalid_state(goal, "RdsInstance", result)),
+        }
+    }
+
+    pub(crate) fn get_vault_token(&self, goal: &Goal) -> Result<String, ArcError> {
+        match self.get(goal)? {
+            TaskResult::VaultToken(x) => Ok(x.clone()),
+            result => Err(ArcError::invalid_state(goal, "VaultToken", result)),
+        }
     }
 }
-

@@ -12,11 +12,11 @@ pub mod select_rds_instance;
 pub mod set_log_level;
 
 use async_trait::async_trait;
-use std::collections::HashMap;
 use cliclack::progress_bar;
-use crate::{Args, Goal, GoalStatus};
+use crate::{Args, GoalStatus, State};
 use crate::aws::influx::InfluxInstance;
 use crate::aws::rds::RdsInstance;
+use crate::errors::ArcError;
 use crate::tasks::get_aws_secret::GetAwsSecretTask;
 use crate::tasks::get_vault_secret::GetVaultSecretTask;
 use crate::tasks::launch_influx::LaunchInfluxTask;
@@ -32,8 +32,8 @@ use crate::tasks::set_log_level::SetLogLevelTask;
 
 #[async_trait]
 pub trait Task: Send + Sync {
-    fn print_intro(&self);
-    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>) -> GoalStatus;
+    fn print_intro(&self) -> Result<(), ArcError>;
+    async fn execute(&self, args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -71,14 +71,14 @@ impl TaskType {
     }
 }
 
+#[derive(Debug)]
 pub enum TaskResult {
     ActuatorService(ActuatorService),
-    //TODO just store a single AwsProfileInfo and indicate whether it was updated or not
-    AwsProfile{ existing: Option<AwsProfileInfo>, updated: Option<AwsProfileInfo> },
+    AwsProfile{ profile: AwsProfileInfo, updated: bool },
     AwsSecret(String),
     InfluxCommand,
     InfluxInstance(InfluxInstance),
-    KubeContext{ existing: Option<KubeContextInfo>, updated: Option<KubeContextInfo> },
+    KubeContext{ context: KubeContextInfo, updated: bool },
     LogLevel,
     PgcliCommand(String),
     PortForward(PortForwardInfo),
@@ -90,18 +90,24 @@ pub enum TaskResult {
 impl TaskResult {
     pub fn eval_string(&self) -> Option<String> {
         match self {
-            TaskResult::AwsProfile{ existing: _, updated: Some(AwsProfileInfo { name, .. }) } => {
-                Some(String::from(format!("export AWS_PROFILE={name}\n")))
+            TaskResult::AwsProfile{ profile: AwsProfileInfo { name, .. }, updated: true } => {
+                Some(format!("export AWS_PROFILE={name}\n"))
             },
-            TaskResult::KubeContext{ existing: _, updated: Some(KubeContextInfo { kubeconfig, .. }) } => {
+            TaskResult::KubeContext{ context: KubeContextInfo { kubeconfig, .. }, updated: true } => {
                 let path = kubeconfig.to_string_lossy();
-                Some(String::from(format!("export KUBECONFIG={path}\n")))
+                Some(format!("export KUBECONFIG={path}\n"))
             },
             TaskResult::PgcliCommand(cmd) => {
-                Some(String::from(format!("{cmd}\n")))
+                Some(format!("{cmd}\n"))
             },
             _ => None,
         }
+    }
+}
+
+impl From<&TaskResult> for String {
+    fn from(result: &TaskResult) -> Self {
+        format!("{:?}", result)
     }
 }
 

@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use cliclack::{intro, select};
-use std::collections::HashMap;
 use clap::ValueEnum;
 use serde_json::Value;
-use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText};
+use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText, State};
+use crate::errors::ArcError;
 use crate::tasks::{Task, TaskResult, TaskType};
 use crate::tasks::TaskType::PortForward;
 
@@ -12,46 +12,49 @@ pub struct SetLogLevelTask;
 
 #[async_trait]
 impl Task for SetLogLevelTask {
-    fn print_intro(&self) {
-        let _ = intro("Log Level");
+    fn print_intro(&self) -> Result<(), ArcError> {
+        intro("Log Level")?;
+        Ok(())
     }
 
-    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
-        // If a service has not yet been selected, we need to wait for that goal to complete
+    async fn execute(&self, args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {
+        // Validate that args are present
+        let args = args.as_ref()
+            .ok_or_else(|| ArcError::invalid_arc_command("LogLevel", "None"))?;
+
+        // Extract the optional service name from args
+        let service_arg = match &args.command {
+            ArcCommand::LogLevel{ service, .. } => service,
+            _ => return Err(ArcError::invalid_arc_command("LogLevel", format!("{:?}", args.command))),
+        };
+
         let svc_selection_goal = Goal::from(TaskType::SelectActuatorService);
-        if !state.contains_key(&svc_selection_goal) {
-            return GoalStatus::Needs(svc_selection_goal);
+        if let None = service_arg && !state.contains(&svc_selection_goal) {
+            // Since service name not provided in args, we need to wait for service selection goal
+            return Ok(GoalStatus::Needs(svc_selection_goal));
         }
 
-        // Retrieve selected service from state
-        let svc_selection_result = state.get(&svc_selection_goal)
-            .expect("TaskResult for SelectActuatorService not found");
-        let service = match svc_selection_result {
-            TaskResult::ActuatorService(value) => value,
-            _ => panic!("Expected TaskResult::ActuatorService"),
+        // Identify service name either from args or the service selection task result
+        let service = match service_arg {
+            Some(x) => x.to_string(),
+            None => state.get_actuator_service(&svc_selection_goal)?.name().to_string()
         };
 
         // If a port-forwarding session doesn't exist, we need to wait for that goal to complete
-        let service = service.name().to_string();
         let port_fwd_goal = Goal::new(PortForward, Some(Args {
             command: ArcCommand::PortForward { service: Some(service), port: None, tear_down: true }
         }));
-        if !state.contains_key(&port_fwd_goal) {
-            return GoalStatus::Needs(port_fwd_goal);
+        if !state.contains(&port_fwd_goal) {
+            return Ok(GoalStatus::Needs(port_fwd_goal));
         }
 
         // Retrieve port-forwarding info from state
-        let port_fwd_result = state.get(&port_fwd_goal)
-            .expect("TaskResult for PortForward not found");
-        let port_fwd_info = match port_fwd_result {
-            TaskResult::PortForward(info) => info,
-            _ => panic!("Expected TaskResult::PortForward"),
-        };
+        let port_fwd_info = state.get_port_forward_info(&port_fwd_goal)?;
 
         // Extract parameters from args
-        let (package, display_only) = match &args.as_ref().expect("Args is None").command {
+        let (package, display_only) = match &args.command {
             ArcCommand::LogLevel{ package, display_only, .. } => (package, display_only),
-            _ => panic!("Expected ArcCommand::LogLevel"),
+            _ => return Err(ArcError::invalid_arc_command("LogLevel", format!("{:?}", args.command))),
         };
 
         let outro_text = if *display_only {
@@ -59,15 +62,16 @@ impl Task for SetLogLevelTask {
             display_log_level(package, port_fwd_info.local_port).await
         } else {
             // We want to change the log level
-            let level = match &args.as_ref().expect("Args is None").command {
+            let level = match &args.command {
                 ArcCommand::LogLevel{ level: Some(level), .. } => level.clone(),
-                _ => prompt_for_log_level(),
+                ArcCommand::LogLevel{ level: None, .. } => prompt_for_log_level(),
+                _ => return Err(ArcError::invalid_arc_command("LogLevel", format!("{:?}", args.command))),
             };
 
             set_log_level(package, port_fwd_info.local_port, &level).await
         };
 
-        GoalStatus::Completed(TaskResult::LogLevel, outro_text)
+        Ok(GoalStatus::Completed(TaskResult::LogLevel, outro_text))
     }
 }
 

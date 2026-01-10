@@ -1,8 +1,7 @@
 use async_trait::async_trait;
-use std::collections::HashMap;
 use cliclack::intro;
-use serde_json::Value;
-use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText};
+use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText, State};
+use crate::errors::ArcError;
 use crate::tasks::{Task, TaskResult, TaskType};
 use crate::tasks::TaskType::GetAwsSecret;
 
@@ -11,53 +10,44 @@ pub struct RunPgcliTask;
 
 #[async_trait]
 impl Task for RunPgcliTask {
-    fn print_intro(&self) {
-        let _ = intro("Run pgcli");
+    fn print_intro(&self) -> Result<(), ArcError> {
+        intro("Run pgcli")?;
+        Ok(())
     }
 
-    async fn execute(&self, _args: &Option<Args>, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
+    async fn execute(&self, _args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {
         // If an RDS instance has not yet been selected, we need to wait for that goal to complete
         let rds_selection_goal = Goal::from(TaskType::SelectRdsInstance);
-        if !state.contains_key(&rds_selection_goal) {
-            return GoalStatus::Needs(rds_selection_goal);
+        if !state.contains(&rds_selection_goal) {
+            return Ok(GoalStatus::Needs(rds_selection_goal));
         }
 
         // Retrieve selected RDS instance from state
-        let rds_selection_result = state.get(&rds_selection_goal)
-            .expect("TaskResult for SelectRdsInstance not found");
-        let rds_instance = match rds_selection_result {
-            TaskResult::RdsInstance(value) => value,
-            _ => panic!("Expected TaskResult::RdsInstance"),
-        };
+        let rds_instance = state.get_rds_instance(&rds_selection_goal)?;
 
         // If the password for this RDS instance has not yet been retrieved, we need to wait for that goal to complete
         let secret_goal = Goal::new(GetAwsSecret, Some(Args {
             command: ArcCommand::AwsSecret { name: Some(rds_instance.secret_id().to_string()) }
         }));
-        if !state.contains_key(&secret_goal) {
-            return GoalStatus::Needs(secret_goal);
+        if !state.contains(&secret_goal) {
+            return Ok(GoalStatus::Needs(secret_goal));
         }
 
-        // Retrieve secret value from state
-        let secret_result = state.get(&secret_goal)
-            .expect("TaskResult for GetAwsSecret not found");
-        let secret_value = match secret_result {
-            TaskResult::AwsSecret(value) => value,
-            _ => panic!("Expected TaskResult::AwsSecret"),
-        };
+        // Retrieve secret value as JSON from state
+        let secret_value = state.get_aws_secret(&secret_goal)?;
 
-        // Parse the secret value into  JSON
-        let secret_json: Value = serde_json::from_str(secret_value)
-            .expect("Failed to parse JSON");
+        let username = secret_value["username"]
+            .as_str()
+            .ok_or_else(|| ArcError::invalid_secret("username"))?;
 
         let cmd = format!(
             "export PGPASSWORD={}\npgcli -h {} -U {}",
-            secret_json["password"], // Don't unwrap to string because we want to retain the quotes
+            secret_value["password"], // Don't unwrap to string because we want to retain the quotes
             rds_instance.host(),
-            secret_json["username"].as_str().expect("Username field in AWS secret is missing"),
+            username,
         );
 
         let outro_text = OutroText::single("Launching pgcli".to_string(), String::new());
-        GoalStatus::Completed(TaskResult::PgcliCommand(cmd), outro_text)
+        Ok(GoalStatus::Completed(TaskResult::PgcliCommand(cmd), outro_text))
     }
 }

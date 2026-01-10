@@ -2,16 +2,15 @@ use async_trait::async_trait;
 use kube::{Api, Client};
 use kube::api::ListParams;
 use cliclack::{intro, outro_note, select, spinner};
-use std::collections::HashMap;
 use console::style;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use k8s_openapi::api::core::v1::{Pod, Service, ServiceSpec};
 use kube::config::Kubeconfig;
 use tokio::task::AbortHandle;
-use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText};
-use crate::aws::eks_cluster::EksCluster;
+use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText, State};
 use crate::aws::kube_service::KubeService;
+use crate::errors::ArcError;
 use crate::tasks::{sleep_indicator, Task, TaskResult, TaskType};
 
 #[derive(Debug)]
@@ -19,27 +18,24 @@ pub struct PortForwardTask;
 
 #[async_trait]
 impl Task for PortForwardTask {
-    fn print_intro(&self) {
-        let _ = intro("Port Forward");
+    fn print_intro(&self) -> Result<(), ArcError> {
+        intro("Port Forward")?;
+        Ok(())
     }
 
-    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
+    async fn execute(&self, args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {
+        // Validate that args are present
+        let args = args.as_ref()
+            .ok_or_else(|| ArcError::invalid_arc_command("PortForward", "None"))?;
+
         // If Kube context has not been selected, we need to wait for that goal to complete
         let context_goal = Goal::from(TaskType::SelectKubeContext);
-        if !state.contains_key(&context_goal) {
-            return GoalStatus::Needs(context_goal);
+        if !state.contains(&context_goal) {
+            return Ok(GoalStatus::Needs(context_goal));
         }
 
         // Retrieve info about the desired Kube context from state
-        let context_result = state.get(&context_goal)
-            .expect("TaskResult for SelectKubeContext not found");
-        let context_info = match context_result {
-            TaskResult::KubeContext { existing, updated } => {
-                updated.as_ref().or(existing.as_ref())
-                    .expect("No Kube context available (both existing and updated are None)")
-            },
-            _ => panic!("Expected TaskResult::KubeContext"),
-        };
+        let context_info = state.get_kube_context_info(&context_goal)?;
 
         // Get the cluster that corresponds to the selected context
         let cluster = &context_info.cluster;
@@ -47,41 +43,41 @@ impl Task for PortForwardTask {
         // Create a Kubernetes client using the KUBECONFIG path from state
         let spinner = spinner();
         spinner.start("Creating Kubernetes client...");
-        let kubeconfig = Kubeconfig::read_from(&context_info.kubeconfig)
-            .expect("Unable to read Kubeconfig");
-        let client = Client::try_from(kubeconfig)
-            .expect("Could not create Kubernetes client");
+        let kubeconfig = Kubeconfig::read_from(&context_info.kubeconfig)?;
+        let client = Client::try_from(kubeconfig)?;
         spinner.stop("Kubernetes client created");
 
         let service_api: Api<Service> = Api::namespaced(client.clone(), &cluster.namespace());
 
         // Determine which service to port-forward to, prompting user if necessary
-        let service = match &args.as_ref().expect("Args is None").command {
-            ArcCommand::PortForward{ service: Some(name), .. } => {
-                KubeService::new(name.clone(), get_service_port(&service_api, name).await)
+        let service = match &args.command {
+            ArcCommand::PortForward{ service: Some(x), .. } => {
+                KubeService::new(x.clone(), get_service_port(&service_api, x).await)
             },
-            _ => {
-                let app_services = get_app_services(&service_api).await;
-                prompt_for_service(&app_services)
-            },
+            ArcCommand::PortForward{ service: None, .. } => prompt_for_service(&service_api).await?,
+            _ => return Err(ArcError::InvalidArcCommand(
+                "PortForward".to_string(),
+                format!("{:?}", args.command)
+            )),
         };
 
         // Determine which local port will be used for port-forwarding
-        let local_port: u16 = match &args.as_ref().expect("Args is None").command {
-            ArcCommand::PortForward{ port: Some(port), .. } => *port,
-            _ => find_available_port().await.expect("Failed to find an available port"),
+        let local_port: u16 = match &args.command {
+            ArcCommand::PortForward{ port: Some(p), .. } => *p,
+            ArcCommand::PortForward{ port: None, .. } => find_available_port().await?,
+            _ => return Err(ArcError::invalid_arc_command(
+                "PortForward",
+                format!("{:?}", args.command)
+            )),
         };
 
         // Find one of the given service's pods
-        let pod = get_service_pod(&service.name, cluster, &client).await;
-
-        // Clone values that need to be moved into the async block
-        let namespace = cluster.namespace();
-        let pod_name = pod.clone();
+        let pod_api: Api<Pod> = Api::namespaced(client.clone(), &cluster.namespace());
+        let pod = get_service_pod(&service.name, &service_api, &pod_api).await?;
 
         // Start port forwarding using Kubernetes API
         let port_forward_handle = tokio::spawn(async move {
-            if let Err(e) = port_forward(client, &namespace, &pod_name, local_port, service.port).await {
+            if let Err(e) = port_forward(&pod, local_port, service.port, &pod_api).await {
                 eprintln!("Port-forward error: {}", e);
             }
         });
@@ -96,20 +92,21 @@ impl Task for PortForwardTask {
         sleep_indicator(2, "Establishing port-forward...", &end_msg).await;
 
         // Determine which local port will be used for port-forwarding
-        if let ArcCommand::PortForward{ tear_down: false, .. } = &args.as_ref().expect("Args is None").command {
+        if let ArcCommand::PortForward{ tear_down: false, .. } = &args.command {
             let prompt = format!("Port-Forwarding to {} service", service.name);
             let msg = format!("Listening on 127.0.0.1:{}\nPress Ctrl+X to terminate", local_port);
-            let _ = outro_note(style(prompt).green(), msg);
+            outro_note(style(prompt).green(), msg)?;
 
             // Assume user wants to keep port-forward open until manually closed
-            let _ = port_forward_handle.await;
+            port_forward_handle.await?;
         }
 
         let info = PortForwardInfo::new(local_port, handle.clone());
-        GoalStatus::Completed(TaskResult::PortForward(info), OutroText::None)
+        Ok(GoalStatus::Completed(TaskResult::PortForward(info), OutroText::None))
     }
 }
 
+#[derive(Debug)]
 pub struct PortForwardInfo {
     pub local_port: u16,
     pub handle: AbortHandle,
@@ -128,14 +125,13 @@ impl Drop for PortForwardInfo {
     }
 }
 
-async fn get_app_services(service_api: &Api<Service>) -> Vec<KubeService> {
+async fn get_app_services(service_api: &Api<Service>) -> Result<Vec<KubeService>, ArcError> {
     // Retrieve ALL services for the given namespace
     let list_params = ListParams::default();
-    let svc_list = service_api.list(&list_params).await
-        .expect("Failed to list services");
+    let svc_list = service_api.list(&list_params).await?;
 
     // Filter out services that don't contain "app" in their selector
-    svc_list.items.into_iter()
+    let kube_services = svc_list.items.into_iter()
         .filter(|svc| {
             svc.spec.as_ref()
                 .and_then(|spec| spec.selector.as_ref())
@@ -144,23 +140,29 @@ async fn get_app_services(service_api: &Api<Service>) -> Vec<KubeService> {
             let name = svc.metadata.name.unwrap();
             let port = extract_port(svc.spec);
             KubeService::new(name, port)
-        }).collect()
+        }).collect();
+
+    Ok(kube_services)
 }
 
-fn prompt_for_service(available_services: &Vec<KubeService>) -> KubeService {
+async fn prompt_for_service(service_api: &Api<Service>) -> Result<KubeService, ArcError> {
+    let available_services = get_app_services(&service_api).await?;
+
     let mut menu = select("Select a service for port-forwarding");
-    for svc in available_services {
+    for svc in &available_services {
         menu = menu.item(&svc.name, &svc.name, "");
     }
 
-    let selected_name = menu.interact().unwrap();
+    let selected_name = menu.interact()?;
 
-    // Find the ServiceInfo that matches the selected name
-    available_services
+    // Find the KubeService that matches the selected name
+    let kube_service = available_services
         .iter()
-        .find(|svc| svc.name.as_str() == selected_name)
+        .find(|svc| &svc.name == selected_name)
         .expect("Selected service not found in available services")
-        .clone()
+        .clone();
+
+    Ok(kube_service)
 }
 
 async fn get_service_port(service_api: &Api<Service>, service_name: &str) -> u16 {
@@ -176,43 +178,40 @@ fn extract_port(spec: Option<ServiceSpec>) -> u16 {
         .map_or(0, |port| port.port as u16)
 }
 
-async fn get_service_pod(service_name: &str, cluster: &EksCluster, client: &Client) -> String {
+async fn get_service_pod(service_name: &str, service_api: &Api<Service>, pod_api: &Api<Pod>) -> Result<String, ArcError> {
     // Get the selector label for the given service so that we can find its pods
-    let selector_label = get_selector_label(service_name, cluster, &client).await;
+    let selector_label = get_selector_label(service_name, service_api).await?;
 
     // List pods matching the service selector
-    let pod_api: Api<Pod> = Api::namespaced(client.clone(), &cluster.namespace());
     //TODO return Selector from get_selector_label and then call labels_from(Selector)
     let list_params = ListParams::default().labels(&selector_label);
-    let pod_list = pod_api.list(&list_params).await
-        .expect("Failed to list pods");
+    let pod_list = pod_api.list(&list_params).await?;
 
     // Return the name of the first pod found
     pod_list.items.first()
-        .and_then(|pod| pod.metadata.name.as_ref())
-        .expect("No pods found matching service selector")
-        .clone()
+        .and_then(|pod| pod.metadata.name.clone())
+        .ok_or_else(|| ArcError::KubePodError(selector_label))
 }
 
-async fn get_selector_label(service_name: &str, cluster: &EksCluster, client: &Client) -> String {
-    let service_api: Api<Service> = Api::namespaced(client.clone(), &cluster.namespace());
-    let service = service_api.get(service_name).await
-        .unwrap_or_else(|_| panic!("Failed to get service: {service_name}"));
+async fn get_selector_label(service_name: &str, service_api: &Api<Service>) -> Result<String, ArcError> {
+    let service = service_api.get(service_name).await?;
 
     // Extract selector labels from the service
     let selector = service.spec
         .and_then(|spec| spec.selector)
-        .expect("Service has no selector");
+        .ok_or_else(|| ArcError::KubeServiceSpecError(service_name.to_string()))?;
 
     // Return label selector string (e.g., "app=metrics")
-    selector
+    let selector_label = selector
         .iter()
         .map(|(k, v)| format!("{}={}", k, v))
         .collect::<Vec<_>>()
-        .join(",")
+        .join(",");
+
+    Ok(selector_label)
 }
 
-async fn find_available_port() -> Result<u16, std::io::Error> {
+async fn find_available_port() -> Result<u16, ArcError> {
     // Bind to port 0, which lets the OS assign an available port
     let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
     let port = listener.local_addr()?.port();
@@ -223,14 +222,11 @@ async fn find_available_port() -> Result<u16, std::io::Error> {
 }
 
 async fn port_forward(
-    client: Client,
-    namespace: &str,
     pod_name: &str,
     local_port: u16,
     pod_port: u16,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let pod_api: Api<Pod> = Api::namespaced(client, namespace);
-
+    pod_api: &Api<Pod>,
+) -> Result<(), ArcError> {
     // Bind local TCP listener
     let listener = TcpListener::bind(("127.0.0.1", local_port)).await?;
 
@@ -262,6 +258,7 @@ async fn port_forward(
             let (mut local_read, mut local_write) = tokio::io::split(local_stream);
             let (mut remote_read, mut remote_write) = tokio::io::split(port_forward_stream);
 
+            //TODO pull this duplicate code into a reusable function
             let client_to_server = async {
                 let mut buf = vec![0u8; 8192];
                 loop {

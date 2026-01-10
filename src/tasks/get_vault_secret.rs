@@ -4,79 +4,68 @@ use std::collections::HashMap;
 use vaultrs::client::VaultClient;
 use vaultrs::kv2;
 
-use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText};
+use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText, State};
 use crate::tasks::{Task, TaskResult, TaskType};
 use crate::aws::vault;
+use crate::errors::ArcError;
 
 #[derive(Debug)]
 pub struct GetVaultSecretTask;
 
 #[async_trait]
 impl Task for GetVaultSecretTask {
-    fn print_intro(&self) {
-        let _ = intro("Get Vault Secret");
+    fn print_intro(&self) -> Result<(), ArcError> {
+        intro("Get Vault Secret")?;
+        Ok(())
     }
 
-    async fn execute(&self, args: &Option<Args>, state: &HashMap<Goal, TaskResult>) -> GoalStatus {
+    async fn execute(&self, args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {
+        // Validate that args are present
+        let args = args.as_ref()
+            .ok_or_else(|| ArcError::invalid_arc_command("Vault", "None"))?;
+
         // If AWS profile info is not available, we need to wait for that goal to complete
         let profile_goal = Goal::from(TaskType::SelectAwsProfile);
-        if !state.contains_key(&profile_goal) {
-            return GoalStatus::Needs(profile_goal);
+        if !state.contains(&profile_goal) {
+            return Ok(GoalStatus::Needs(profile_goal));
         }
 
         // If we haven't obtained a valid Vault token yet, we need to wait for that goal to complete
-        //TODO create a "wait_for_goal(TaskType) -> Goal" function in tasks.rs?
-        // (that might not work for complex goals with args)
         let login_goal = Goal::from(TaskType::LoginToVault);
-        if !state.contains_key(&login_goal) {
-            return GoalStatus::Needs(login_goal);
+        if !state.contains(&login_goal) {
+            return Ok(GoalStatus::Needs(login_goal));
         }
 
         // Retrieve info about the desired AWS profile from state
-        let aws_profile_result = state.get(&profile_goal)
-            .expect("TaskResult for SelectAwsProfile not found");
-        // TODO Add a TaskResult::extract_value<T>() -> T method?
-        let profile_info = match aws_profile_result {
-            TaskResult::AwsProfile { existing, updated } => {
-                updated.as_ref().or(existing.as_ref())
-                    .expect("No AWS profile available (both existing and updated are None)")
-            },
-            _ => panic!("Expected TaskResult::AwsProfile"),
-        };
-        let aws_account = &profile_info.account;
-        let vault_instance = aws_account.vault_instance();
+        let profile_info = state.get_aws_profile_info(&profile_goal)?;
 
         // Retrieve validated Vault token from state
-        let login_result = state.get(&login_goal)
-            .expect("TaskResult for LoginToVault not found");
-        let token = match login_result {
-            TaskResult::VaultToken(value) => value,
-            _ => panic!("Expected TaskResult::VaultToken"),
-        };
+        let token = state.get_vault_token(&login_goal)?;
 
         // Create Vault client using the token
+        let aws_account = &profile_info.account;
+        let vault_instance = aws_account.vault_instance();
         let client = vault::create_client(
             vault_instance.address(),
             vault_instance.secrets_namespace(aws_account),
-            Some(token.to_string())
+            Some(token)
         );
-
-        let args = args.as_ref().expect("Args is None");
 
         // Determine which secret to retrieve, prompting user if necessary
         let secret_path = match &args.command {
-            ArcCommand::Vault{ path: Some(p), .. } => p.clone(),
-            _ => prompt_for_secret_path(&client).await.expect("Failed to select secret path"),
+            ArcCommand::Vault{ path: Some(x), .. } => x.clone(),
+            ArcCommand::Vault{ path: None, .. } => prompt_for_secret_path(&client).await?,
+            _ => return Err(ArcError::invalid_arc_command("Vault", format!("{:?}", args.command))),
         };
 
         // Retrieve the secret key-value pairs from Vault
-        let secrets: HashMap<String, String> = kv2::read(&client, "kv-v2", &secret_path)
-            .await.expect("Unable to read Vault secret");
+        let secrets: HashMap<String, String> = kv2::read(&client, "kv-v2", &secret_path).await?;
 
         // Optionally extract a specific field from the secret and format for display
         let (_, outro_text) = match &args.command {
             ArcCommand::Vault{ field: Some(f), .. } => {
                 // Extract specific field
+                //TODO abstract this logic into a function
                 let secret_field = match secrets.get(f) {
                     Some(value) => value.to_string(),
                     None => {
@@ -86,8 +75,9 @@ impl Task for GetVaultSecretTask {
                 let outro_msg = OutroText::multi(f.clone(), secret_field.clone());
                 (secret_field, outro_msg)
             },
-            _ => {
+            ArcCommand::Vault{ field: None, .. } => {
                 // Concatenate k: v pairs into a single, newline-delimited string
+                //TODO abstract this logic into a function
                 let full_secret = secrets.iter()
                     .map(|(k, v)| format!("{}: {}", k, v))
                     .collect::<Vec<String>>()
@@ -96,13 +86,14 @@ impl Task for GetVaultSecretTask {
                 let outro_msg = OutroText::multi(prompt, full_secret.clone());
                 (full_secret, outro_msg)
             },
+            _ => return Err(ArcError::invalid_arc_command("Vault", format!("{:?}", args.command))),
         };
 
-        GoalStatus::Completed(TaskResult::VaultSecret, outro_text)
+        Ok(GoalStatus::Completed(TaskResult::VaultSecret, outro_text))
     }
 }
 
-async fn prompt_for_secret_path(client: &VaultClient) -> Result<String, Box<dyn std::error::Error>> {
+async fn prompt_for_secret_path(client: &VaultClient) -> Result<String, ArcError> {
     let mut current_path = String::new();
 
     while current_path.is_empty() || current_path.ends_with('/') {
