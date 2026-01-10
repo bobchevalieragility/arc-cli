@@ -21,7 +21,6 @@ impl Task for SelectAwsProfileTask {
     }
 
     async fn execute(&self, args: &Option<Args>, _state: &State) -> Result<GoalStatus, ArcError> {
-        //TODO Cannot switch to sandbox profile
         // Validate that args are present
         let args = args.as_ref()
             .ok_or_else(|| ArcError::invalid_arc_command("Switch", "None"))?;
