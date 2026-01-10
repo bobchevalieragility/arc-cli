@@ -230,11 +230,11 @@ async fn execute_goals(terminal_goals: Vec<Goal>) -> Result<(), ArcError> {
                     // Print outro message
                     if let SingleLine{ key, value } = outro_text {
                         let text = format!("{}: {}", style(key).green(), style(value).dim());
-                        let _ = outro(text);
+                        outro(text)?;
                     } else if let MultiLine{ key, value } = outro_text {
                         let prompt = style(key).green();
                         let message = style(value).dim();
-                        let _ = outro_note(prompt, message);
+                        outro_note(prompt, message)?;
                     }
                 }
 

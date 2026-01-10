@@ -45,7 +45,7 @@ impl Task for LoginToVaultTask {
             if let Ok(token_info) = token::lookup_self(&client).await {
                 if token_info.ttl > 0 {
                     // Existing token is still valid, so let's use it
-                    let _ = cliclack::log::info("Using existing Vault token");
+                    cliclack::log::info("Using existing Vault token")?;
                     return Ok(GoalStatus::Completed(TaskResult::VaultToken(token), OutroText::None));
                 }
             }
@@ -88,7 +88,6 @@ fn save_token_file(token: &str) -> Result<(), ArcError> {
     Ok(())
 }
 
-//TODO replace all instances of "let _ = "
 async fn vault_login(vault_instance: &VaultInstance) -> Result<String, ArcError> {
     // Start a local HTTP server to listen for the OIDC callback
     let redirect_host = "localhost:8250";
@@ -113,7 +112,7 @@ async fn vault_login(vault_instance: &VaultInstance) -> Result<String, ArcError>
     let nonce = extract_query_param(&url, "nonce")?;
 
     // Open the user's default web browser to the auth URL
-    let _ = webbrowser::open(&auth_response.auth_url);
+    webbrowser::open(&auth_response.auth_url)?;
 
     // Wait for the OIDC callback request
     let request = server.recv()?;

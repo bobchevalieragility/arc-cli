@@ -59,6 +59,9 @@ pub enum ArcError {
     #[error("Path error: {0}")]
     PathError(String),
 
+    #[error("Tokio Join error: {0}")]
+    TokioJoinError(#[from] tokio::task::JoinError),
+
     #[error("URL Parse error: {0}")]
     UrlParseError(#[from] url::ParseError),
 

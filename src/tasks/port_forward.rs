@@ -97,10 +97,10 @@ impl Task for PortForwardTask {
         if let ArcCommand::PortForward{ tear_down: false, .. } = &args.command {
             let prompt = format!("Port-Forwarding to {} service", service.name);
             let msg = format!("Listening on 127.0.0.1:{}\nPress Ctrl+X to terminate", local_port);
-            let _ = outro_note(style(prompt).green(), msg);
+            outro_note(style(prompt).green(), msg)?;
 
             // Assume user wants to keep port-forward open until manually closed
-            let _ = port_forward_handle.await;
+            port_forward_handle.await?;
         }
 
         let info = PortForwardInfo::new(local_port, handle.clone());
