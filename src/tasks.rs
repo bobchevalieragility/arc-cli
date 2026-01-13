@@ -1,3 +1,4 @@
+pub mod create_tab_completions;
 pub mod get_aws_secret;
 pub mod get_vault_secret;
 pub mod launch_influx;
@@ -17,6 +18,7 @@ use crate::{Args, GoalStatus, State};
 use crate::aws::influx::InfluxInstance;
 use crate::aws::rds::RdsInstance;
 use crate::errors::ArcError;
+use crate::tasks::create_tab_completions::CreateTabCompletionsTask;
 use crate::tasks::get_aws_secret::GetAwsSecretTask;
 use crate::tasks::get_vault_secret::GetVaultSecretTask;
 use crate::tasks::launch_influx::LaunchInfluxTask;
@@ -38,6 +40,7 @@ pub trait Task: Send + Sync {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TaskType {
+    CreateTabCompletions,
     GetAwsSecret,
     GetVaultSecret,
     LaunchInflux,
@@ -55,6 +58,7 @@ pub enum TaskType {
 impl TaskType {
     pub fn to_task(&self) -> Box<dyn Task> {
         match self {
+            TaskType::CreateTabCompletions => Box::new(CreateTabCompletionsTask),
             TaskType::GetAwsSecret => Box::new(GetAwsSecretTask),
             TaskType::GetVaultSecret => Box::new(GetVaultSecretTask),
             TaskType::LaunchInflux => Box::new(LaunchInfluxTask),
@@ -83,6 +87,7 @@ pub enum TaskResult {
     PgcliCommand(String),
     PortForward(PortForwardInfo),
     RdsInstance(RdsInstance),
+    TabCompletionsCreated,
     VaultSecret,
     VaultToken(String),
 }

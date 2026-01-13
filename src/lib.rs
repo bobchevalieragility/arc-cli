@@ -18,6 +18,7 @@ use crate::tasks::select_actuator_service::ActuatorService;
 use crate::tasks::select_aws_profile::AwsProfileInfo;
 use crate::tasks::select_kube_context::KubeContextInfo;
 use crate::tasks::set_log_level::Level;
+use std;
 
 #[derive(Parser, Clone, Debug, PartialEq, Eq, Hash)]
 #[command(author, version, about = "CLI Tool for Arc Backend")]
@@ -81,6 +82,8 @@ enum ArcCommand {
         #[arg(short, long, help = "Whether to skip if already set (defaults to false)")]
         use_current: bool,
     },
+    #[command(about = "Generate a shell completion script")]
+    Completions,
 }
 
 impl Args {
@@ -88,6 +91,9 @@ impl Args {
         match self.command {
             ArcCommand::AwsSecret { .. } => vec![
                 Goal::new_terminal(TaskType::GetAwsSecret, Some(self.clone()))
+            ],
+            ArcCommand::Completions => vec![
+                Goal::new_terminal(TaskType::CreateTabCompletions, Some(self.clone()))
             ],
             ArcCommand::LogLevel { .. } => vec![
                 Goal::new_terminal(TaskType::SetLogLevel, Some(self.clone()))
@@ -340,4 +346,14 @@ impl State {
             result => Err(ArcError::invalid_state(goal, "VaultToken", result)),
         }
     }
+}
+
+fn config_path() -> Result<std::path::PathBuf, ArcError> {
+    //TODO .arc-cli path should be configurable
+    let mut config_path = home::home_dir().ok_or_else(|| ArcError::HomeDirError)?;
+    config_path.push(".arc-cli");
+
+    // Create the config directory if it doesn't already exist
+    std::fs::create_dir_all(&config_path)?;
+    Ok(config_path)
 }
