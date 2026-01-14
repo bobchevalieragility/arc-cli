@@ -22,6 +22,12 @@ impl Task for SetLogLevelTask {
         let args = args.as_ref()
             .ok_or_else(|| ArcError::invalid_arc_command("LogLevel", "None"))?;
 
+        // Ensure that SSO token has not expired
+        let sso_goal = Goal::from(TaskType::PerformSso);
+        if !state.contains(&sso_goal) {
+            return Ok(GoalStatus::Needs(sso_goal));
+        }
+
         // Extract the optional service name from args
         let service_arg = match &args.command {
             ArcCommand::LogLevel{ service, .. } => service,

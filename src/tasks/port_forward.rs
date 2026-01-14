@@ -28,6 +28,12 @@ impl Task for PortForwardTask {
         let args = args.as_ref()
             .ok_or_else(|| ArcError::invalid_arc_command("PortForward", "None"))?;
 
+        // Ensure that SSO token has not expired
+        let sso_goal = Goal::from(TaskType::PerformSso);
+        if !state.contains(&sso_goal) {
+            return Ok(GoalStatus::Needs(sso_goal));
+        }
+
         // If Kube context has not been selected, we need to wait for that goal to complete
         let context_goal = Goal::from(TaskType::SelectKubeContext);
         if !state.contains(&context_goal) {

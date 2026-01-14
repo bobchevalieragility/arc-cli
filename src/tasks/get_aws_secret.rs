@@ -22,6 +22,12 @@ impl Task for GetAwsSecretTask {
         let args = args.as_ref()
             .ok_or_else(|| ArcError::invalid_arc_command("AwsSecret", "None"))?;
 
+        // Ensure that SSO token has not expired
+        let sso_goal = Goal::from(TaskType::PerformSso);
+        if !state.contains(&sso_goal) {
+            return Ok(GoalStatus::Needs(sso_goal));
+        }
+
         // If AWS profile info is not available, we need to wait for that goal to complete
         let profile_goal = Goal::from(TaskType::SelectAwsProfile);
         if !state.contains(&profile_goal) {

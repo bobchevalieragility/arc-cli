@@ -16,6 +16,12 @@ impl Task for RunPgcliTask {
     }
 
     async fn execute(&self, _args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {
+        // Ensure that SSO token has not expired
+        let sso_goal = Goal::from(TaskType::PerformSso);
+        if !state.contains(&sso_goal) {
+            return Ok(GoalStatus::Needs(sso_goal));
+        }
+
         // If an RDS instance has not yet been selected, we need to wait for that goal to complete
         let rds_selection_goal = Goal::from(TaskType::SelectRdsInstance);
         if !state.contains(&rds_selection_goal) {

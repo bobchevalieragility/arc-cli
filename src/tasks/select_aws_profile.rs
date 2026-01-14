@@ -1,12 +1,9 @@
 use cliclack::{intro, select};
 use async_trait::async_trait;
-use aws_runtime::env_config::file::EnvConfigFiles;
-use aws_config::profile;
-use aws_types::os_shim_internal::{Env, Fs};
 use std::env;
-use aws_runtime::env_config::section::EnvConfigSections;
 use crate::{ArcCommand, Args, GoalStatus, OutroText, State};
 use crate::aws::aws_account::AwsAccount;
+use crate::aws;
 use crate::errors::ArcError;
 use crate::tasks::{Task, TaskResult};
 
@@ -77,7 +74,7 @@ async fn prompt_for_aws_profile() -> Result<String, ArcError> {
 }
 
 async fn get_available_aws_profiles() -> Result<Vec<String>, ArcError> {
-    let config_sections = get_env_configs().await?;
+    let config_sections = aws::get_env_configs().await?;
 
     // Extract profile names
     let mut profile_names: Vec<String> = config_sections
@@ -95,7 +92,7 @@ async fn get_available_aws_profiles() -> Result<Vec<String>, ArcError> {
 }
 
 async fn get_aws_account(profile_name: &str) -> Result<AwsAccount, ArcError> {
-    let config_sections = get_env_configs().await?;
+    let config_sections = aws::get_env_configs().await?;
 
     // Extract SSO account ID
     let profile = config_sections.get_profile(profile_name)
@@ -104,17 +101,4 @@ async fn get_aws_account(profile_name: &str) -> Result<AwsAccount, ArcError> {
         .ok_or_else(|| ArcError::AwsProfileError("sso_account_id not found in profile".to_string()))?;
 
     Ok(AwsAccount::from(account_id))
-}
-
-async fn get_env_configs() -> Result<EnvConfigSections, ArcError> {
-    // Use real filesystem and environment access
-    let fs = Fs::real();
-    let env = Env::real();
-
-    // Load default profile files (~/.aws/config and ~/.aws/credentials)
-    let config_files = EnvConfigFiles::default();
-
-    // Load env config sections asynchronously
-    let env_config_sections = profile::load(&fs, &env, &config_files, None).await?;
-    Ok(env_config_sections)
 }
