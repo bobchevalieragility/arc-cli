@@ -46,7 +46,7 @@ impl Task for SelectKubeContextTask {
         let mut config = Kubeconfig::read_from(kube_path)?;
 
         // Prompt user to select a kubernetes context
-        let selected_kube_context = prompt_for_kube_context(&config);
+        let selected_kube_context = prompt_for_kube_context(&config)?;
 
         // Set outro content
         let key = "Switched to Kube context".to_string();
@@ -108,7 +108,7 @@ fn get_cluster(context_name: &str, config: &Kubeconfig) -> Result<EksCluster, Ar
     Ok(EksCluster::from(context.cluster.as_str()))
 }
 
-fn prompt_for_kube_context(config: &Kubeconfig) -> String {
+fn prompt_for_kube_context(config: &Kubeconfig) -> Result<String, ArcError> {
     let mut menu = select("Select a Kubernetes Context");
 
     let available_contexts: Vec<String> = config.contexts
@@ -120,5 +120,5 @@ fn prompt_for_kube_context(config: &Kubeconfig) -> String {
         menu = menu.item(ctx, ctx, "");
     }
 
-    menu.interact().unwrap().to_string()
+    Ok(menu.interact()?.to_string())
 }

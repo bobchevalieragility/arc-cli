@@ -32,6 +32,9 @@ pub enum ArcError {
     #[error("Error: {0}")]
     Error(#[from] Box<dyn std::error::Error + Send + Sync>),
 
+    #[error("Could not determine home directory")]
+    HomeDirError,
+
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
 
@@ -65,14 +68,14 @@ pub enum ArcError {
     #[error("Unable to lookup Kube Service spec: {0}")]
     KubeServiceSpecError(String),
 
-    #[error("Could not determine home directory")]
-    HomeDirError,
-
     #[error("Tokio Join error: {0}")]
     TokioJoinError(#[from] tokio::task::JoinError),
 
     #[error("Unable to parse secret as string: {0}")]
     UnparseableSecret(String),
+
+    #[error("User input error: {0}")]
+    UserInputError(String),
 
     #[error("URL Parse error: {0}")]
     UrlParseError(#[from] url::ParseError),

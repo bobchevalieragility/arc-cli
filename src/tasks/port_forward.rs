@@ -58,7 +58,7 @@ impl Task for PortForwardTask {
         // Determine which service to port-forward to, prompting user if necessary
         let service = match &args.command {
             ArcCommand::PortForward{ service: Some(x), .. } => {
-                KubeService::new(x.clone(), get_service_port(&service_api, x).await)
+                KubeService::new(x.clone(), get_service_port(&service_api, x).await?)
             },
             ArcCommand::PortForward{ service: None, .. } => prompt_for_service(&service_api).await?,
             _ => return Err(ArcError::InvalidArcCommand(
@@ -144,9 +144,9 @@ async fn get_app_services(service_api: &Api<Service>) -> Result<Vec<KubeService>
                 .map_or(false, |selector| selector.contains_key("app"))
         }).map(|svc| {
             let name = svc.metadata.name.unwrap();
-            let port = extract_port(svc.spec);
-            KubeService::new(name, port)
-        }).collect();
+            let port = extract_port(svc.spec)?;
+            Ok(KubeService::new(name, port))
+        }).collect::<Result<Vec<_>, ArcError>>()?;
 
     Ok(kube_services)
 }
@@ -171,17 +171,16 @@ async fn prompt_for_service(service_api: &Api<Service>) -> Result<KubeService, A
     Ok(kube_service)
 }
 
-async fn get_service_port(service_api: &Api<Service>, service_name: &str) -> u16 {
-    let svc = service_api.get(service_name).await
-        .unwrap_or_else(|_| panic!("Failed to get service: {service_name}"));
+async fn get_service_port(service_api: &Api<Service>, service_name: &str) -> Result<u16, ArcError> {
+    let svc = service_api.get(service_name).await?;
     extract_port(svc.spec)
 }
 
-fn extract_port(spec: Option<ServiceSpec>) -> u16 {
-    spec.as_ref()
+fn extract_port(spec: Option<ServiceSpec>) -> Result<u16, ArcError> {
+    Ok(spec.as_ref()
         .and_then(|spec| spec.ports.as_ref())
         .and_then(|ports| ports.first())
-        .map_or(0, |port| port.port as u16)
+        .map_or(0, |port| port.port as u16))
 }
 
 async fn get_service_pod(service_name: &str, service_api: &Api<Service>, pod_api: &Api<Pod>) -> Result<String, ArcError> {

@@ -15,7 +15,11 @@ async fn main() {
     });
 
     if let Err(e) = run(&args).await {
-        eprintln!("{}", style(e).red());
-        std::process::exit(1);
+        // Suppress errors from someone hitting Esc during
+        // prompts because cliclack already displays a message
+        if e.to_string() != "IO error: operation interrupted" {
+            eprintln!("{}", style(e).red());
+            std::process::exit(1);
+        }
     };
 }

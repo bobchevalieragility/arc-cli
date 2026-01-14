@@ -70,7 +70,7 @@ impl Task for SetLogLevelTask {
             // We want to change the log level
             let level = match &args.command {
                 ArcCommand::LogLevel{ level: Some(level), .. } => level.clone(),
-                ArcCommand::LogLevel{ level: None, .. } => prompt_for_log_level(),
+                ArcCommand::LogLevel{ level: None, .. } => prompt_for_log_level()?,
                 _ => return Err(ArcError::invalid_arc_command("LogLevel", format!("{:?}", args.command))),
             };
 
@@ -126,7 +126,7 @@ async fn set_log_level(package: &str, local_port: u16, level: &Level) -> OutroTe
     OutroText::None
 }
 
-fn prompt_for_log_level() -> Level {
+fn prompt_for_log_level() -> Result<Level, ArcError> {
     let available_levels = Level::all();
 
     let mut menu = select("Select desired log level");
@@ -134,8 +134,8 @@ fn prompt_for_log_level() -> Level {
         menu = menu.item(level.name(), level.name(), "");
     }
 
-    let selected_level = menu.interact().unwrap();
-    Level::from(selected_level)
+    let selected_level = menu.interact()?;
+    Ok(Level::from(selected_level))
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, ValueEnum)]

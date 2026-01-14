@@ -35,19 +35,19 @@ impl Task for SelectRdsInstanceTask {
                 let key = "Inferred RDS instance".to_string();
                 (instance, OutroText::single(key, instance.name().to_string()))
             },
-            _ => (prompt_for_rds_instance(available_rds_instances).await, OutroText::None)
+            _ => (prompt_for_rds_instance(available_rds_instances).await?, OutroText::None)
         };
 
         Ok(GoalStatus::Completed(TaskResult::RdsInstance(rds_instance), outro_text))
     }
 }
 
-async fn prompt_for_rds_instance(available_rds_instances: Vec<RdsInstance>) -> RdsInstance {
+async fn prompt_for_rds_instance(available_rds_instances: Vec<RdsInstance>) -> Result<RdsInstance, ArcError> {
     let mut menu = select("Select RDS instance");
     for rds in &available_rds_instances {
         menu = menu.item(rds.name(), rds.name(), "");
     }
 
-    let rds_name = menu.interact().unwrap().to_string();
-    RdsInstance::from(rds_name.as_str())
+    let rds_name = menu.interact()?.to_string();
+    Ok(RdsInstance::from(rds_name.as_str()))
 }
