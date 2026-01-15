@@ -36,9 +36,8 @@ impl Goal {
         Goal::new(GoalType::ActuatorServiceSelected, GoalParams::None)
     }
 
-    //TODO is use_current always true for non-terminal goals?
-    pub fn aws_profile_selected(use_current: bool) -> Self {
-        let params = GoalParams::AwsProfileSelected { use_current };
+    pub fn aws_profile_selected() -> Self {
+        let params = GoalParams::AwsProfileSelected { use_current: true };
         Goal::new(GoalType::AwsProfileSelected, params)
     }
 
@@ -65,9 +64,8 @@ impl Goal {
         Goal::new_terminal(GoalType::InfluxLaunched, GoalParams::None)
     }
 
-    //TODO is use_current always true for non-terminal goals?
-    pub fn kube_context_selected(use_current: bool) -> Self {
-        let params = GoalParams::KubeContextSelected { use_current };
+    pub fn kube_context_selected() -> Self {
+        let params = GoalParams::KubeContextSelected { use_current: true };
         Goal::new(GoalType::KubeContextSelected, params)
     }
 

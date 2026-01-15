@@ -33,7 +33,7 @@ impl Task for PortForwardTask {
         }
 
         // If Kube context has not been selected, we need to wait for that goal to complete
-        let context_goal = Goal::kube_context_selected(true);
+        let context_goal = Goal::kube_context_selected();
         if !state.contains(&context_goal) {
             return Ok(GoalStatus::Needs(context_goal));
         }

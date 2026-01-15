@@ -22,7 +22,7 @@ impl Task for GetVaultSecretTask {
 
     async fn execute(&self, params: &GoalParams, state: &State) -> Result<GoalStatus, ArcError> {
         // If AWS profile info is not available, we need to wait for that goal to complete
-        let profile_goal = Goal::aws_profile_selected(true);
+        let profile_goal = Goal::aws_profile_selected();
         if !state.contains(&profile_goal) {
             return Ok(GoalStatus::Needs(profile_goal));
         }
