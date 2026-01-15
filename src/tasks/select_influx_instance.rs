@@ -1,8 +1,10 @@
 use cliclack::{intro, select};
 use async_trait::async_trait;
-use crate::{Args, Goal, GoalStatus, OutroText, State};
+use crate::args::Args;
 use crate::aws::influx::InfluxInstance;
 use crate::errors::ArcError;
+use crate::goals::{Goal, GoalStatus, OutroText};
+use crate::state::State;
 use crate::tasks::{Task, TaskResult, TaskType};
 
 #[derive(Debug)]

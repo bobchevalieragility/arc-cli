@@ -1,7 +1,9 @@
 use async_trait::async_trait;
 use cliclack::intro;
-use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText, State};
+use crate::args::{ArcCommand, Args};
 use crate::errors::ArcError;
+use crate::goals::{Goal, GoalStatus, OutroText};
+use crate::state::State;
 use crate::tasks::{Task, TaskResult, TaskType};
 use crate::tasks::TaskType::GetAwsSecret;
 

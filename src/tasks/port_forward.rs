@@ -8,9 +8,11 @@ use tokio::net::TcpListener;
 use k8s_openapi::api::core::v1::{Pod, Service, ServiceSpec};
 use kube::config::Kubeconfig;
 use tokio::task::AbortHandle;
-use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText, State};
+use crate::args::{ArcCommand, Args};
 use crate::aws::kube_service::KubeService;
 use crate::errors::ArcError;
+use crate::goals::{Goal, GoalStatus, OutroText};
+use crate::state::State;
 use crate::tasks::{sleep_indicator, Task, TaskResult, TaskType};
 
 #[derive(Debug)]

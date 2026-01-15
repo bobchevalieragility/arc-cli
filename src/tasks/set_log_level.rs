@@ -2,8 +2,10 @@ use async_trait::async_trait;
 use cliclack::{intro, select};
 use clap::ValueEnum;
 use serde_json::Value;
-use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText, State};
+use crate::args::{ArcCommand, Args};
 use crate::errors::ArcError;
+use crate::goals::{Goal, GoalStatus, OutroText};
+use crate::state::State;
 use crate::tasks::{Task, TaskResult, TaskType};
 use crate::tasks::TaskType::PortForward;
 

@@ -3,8 +3,10 @@ use aws_config::BehaviorVersion;
 use aws_sdk_secretsmanager::Client;
 use aws_types::region::Region;
 use cliclack::{intro, select};
-use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText, State};
+use crate::args::{ArcCommand, Args};
 use crate::errors::ArcError;
+use crate::goals::{Goal, GoalStatus, OutroText};
+use crate::state::State;
 use crate::tasks::{Task, TaskResult, TaskType};
 
 #[derive(Debug)]

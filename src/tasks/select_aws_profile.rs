@@ -1,10 +1,12 @@
 use cliclack::{intro, select};
 use async_trait::async_trait;
 use std::env;
-use crate::{ArcCommand, Args, GoalStatus, OutroText, State};
+use crate::args::{ArcCommand, Args};
 use crate::aws::aws_account::AwsAccount;
 use crate::aws;
 use crate::errors::ArcError;
+use crate::goals::{GoalStatus, OutroText};
+use crate::state::State;
 use crate::tasks::{Task, TaskResult};
 
 #[derive(Debug)]

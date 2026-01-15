@@ -3,11 +3,12 @@ use cliclack::{intro, select};
 use std::collections::HashMap;
 use vaultrs::client::VaultClient;
 use vaultrs::kv2;
-
-use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText, State};
+use crate::args::{ArcCommand, Args};
 use crate::tasks::{Task, TaskResult, TaskType};
 use crate::aws::vault;
 use crate::errors::ArcError;
+use crate::goals::{Goal, GoalStatus, OutroText};
+use crate::state::State;
 
 #[derive(Debug)]
 pub struct GetVaultSecretTask;

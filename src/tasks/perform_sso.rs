@@ -4,9 +4,11 @@ use sha1::{Sha1, Digest};
 use std::process::Command;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
-
-use crate::{aws, Args, GoalStatus, OutroText, State};
+use crate::args::Args;
+use crate::aws;
 use crate::errors::ArcError;
+use crate::goals::{GoalStatus, OutroText};
+use crate::state::State;
 use crate::tasks::{Task, TaskResult};
 
 #[derive(Debug)]

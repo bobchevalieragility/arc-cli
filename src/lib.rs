@@ -1,183 +1,20 @@
+mod args;
 mod aws;
 mod errors;
+mod goals;
+mod state;
 mod tasks;
 
-use std::convert::From;
-use std::collections::{HashMap, HashSet};
-use clap::{Parser, Subcommand};
+// Re-export Args for use in main.rs
+pub use args::Args;
+
+use std::collections::HashSet;
 use cliclack::{outro, outro_note};
 use console::style;
-use serde_json::Value;
-use crate::aws::influx::InfluxInstance;
-use crate::aws::rds::RdsInstance;
 use crate::errors::ArcError;
-use crate::OutroText::{MultiLine, SingleLine};
-use crate::tasks::{TaskResult, TaskType};
-use crate::tasks::port_forward::PortForwardInfo;
-use crate::tasks::select_actuator_service::ActuatorService;
-use crate::tasks::select_aws_profile::AwsProfileInfo;
-use crate::tasks::select_kube_context::KubeContextInfo;
-use crate::tasks::set_log_level::Level;
 use std;
-
-#[derive(Parser, Clone, Debug, PartialEq, Eq, Hash)]
-#[command(author, version, about = "CLI Tool for Arc Backend")]
-pub struct Args {
-    #[command(subcommand)]
-    command: ArcCommand,
-}
-
-#[derive(Subcommand, Clone, Debug, PartialEq, Eq, Hash)]
-enum ArcCommand {
-    #[command(about = "View or set the log level for a Java Spring Boot service")]
-    LogLevel {
-        #[arg(short, long, help = "Service name, e.g. 'metrics' (if omitted, will prompt)")]
-        service: Option<String>,
-
-        #[arg(short, long, default_value = "ROOT", help = "Package, e.g. 'com.agilityrobotics.metrics' (defaults to ROOT)")]
-        package: String,
-
-        #[arg(short, long, help = "Desired log level (if omitted, will prompt)")]
-        level: Option<Level>,
-
-        #[arg(short, long, help = "Just print the current log level")]
-        display_only: bool,
-    },
-    #[command(about = "Retrieve a secret value from AWS Secrets Manager")]
-    AwsSecret {
-        #[arg(short, long, help = "Name of the secret to retrieve (if omitted, will prompt)")]
-        name: Option<String>,
-    },
-    #[command(about = "Retrieve a secret value from Vault")]
-    Vault {
-        #[arg(short, long, help = "Path to secret to retrieve (if omitted, will prompt)")]
-        path: Option<String>,
-
-        #[arg(short, long, help = "Field within secret to retrieve (defaults to entire secret)")]
-        field: Option<String>,
-    },
-    #[command(about = "Launch pgcli to interact with a Postgres RDS instance")]
-    Pgcli,
-    #[command(about = "Launch the InfluxDB UI")]
-    Influx,
-    #[command(about = "Start port-forwarding to a Kubernetes service")]
-    PortForward {
-        #[arg(short, long, help = "Service name, e.g. 'metrics' (if omitted, will prompt)")]
-        service: Option<String>,
-
-        #[arg(short, long, help = "Local port (defaults to random, unused port)")]
-        port: Option<u16>,
-
-        #[arg(short, long, help = "Tear down port-forwarding when command exits")]
-        tear_down: bool,
-    },
-    #[command(about = "Switch AWS profile and/or Kubernetes context")]
-    Switch {
-        #[arg(short, long, help = "Switch AWS profile (if false and kube_context is false, will switch both)")]
-        aws_profile: bool,
-
-        #[arg(short, long, help = "Switch kube context (if false and kube_context is false, will switch both)")]
-        kube_context: bool,
-
-        #[arg(short, long, help = "Whether to skip if already set (defaults to false)")]
-        use_current: bool,
-    },
-    #[command(about = "Generate a shell completion script")]
-    Completions,
-    #[command(about = "Temporary command to test SSO")]
-    Sso,
-}
-
-impl Args {
-    fn to_goals(&self) -> Vec<Goal> {
-        match self.command {
-            ArcCommand::AwsSecret { .. } => vec![
-                Goal::new_terminal(TaskType::GetAwsSecret, Some(self.clone()))
-            ],
-            ArcCommand::Completions => vec![
-                Goal::new_terminal(TaskType::CreateTabCompletions, Some(self.clone()))
-            ],
-            ArcCommand::LogLevel { .. } => vec![
-                Goal::new_terminal(TaskType::SetLogLevel, Some(self.clone()))
-            ],
-            ArcCommand::Pgcli => vec![
-                Goal::new_terminal(TaskType::RunPgcli, Some(self.clone()))
-            ],
-            ArcCommand::PortForward { .. } => vec![
-                Goal::new_terminal(TaskType::PortForward, Some(self.clone()))
-            ],
-            ArcCommand::Influx => vec![
-                Goal::new_terminal(TaskType::LaunchInflux, Some(self.clone()))
-            ],
-            ArcCommand::Switch { aws_profile: true, .. } => vec![
-                Goal::new_terminal(TaskType::SelectAwsProfile, Some(self.clone()))
-            ],
-            ArcCommand::Switch { kube_context: true, .. } => vec![
-                Goal::new_terminal(TaskType::SelectKubeContext, Some(self.clone()))
-            ],
-            ArcCommand::Switch { aws_profile: false, kube_context: false, .. } => vec![
-                Goal::new_terminal(TaskType::SelectKubeContext, Some(self.clone())),
-                Goal::new_terminal(TaskType::SelectAwsProfile, Some(self.clone()))
-            ],
-            ArcCommand::Vault { .. } => vec![
-                Goal::new_terminal(TaskType::GetVaultSecret, Some(self.clone()))
-            ],
-            ArcCommand::Sso => vec![
-                Goal::new_terminal(TaskType::PerformSso, Some(self.clone()))
-            ],
-        }
-    }
-}
-
-//TODO move Goal into it's own module to force callers to use the Goal::new or Goal::new_terminal constructors
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-struct Goal {
-    task_type: TaskType,
-    args: Option<Args>,
-    is_terminal_goal: bool,
-}
-
-impl Goal {
-    fn new(task_type: TaskType, args: Option<Args>) -> Self {
-        Goal { task_type, args, is_terminal_goal: false }
-    }
-    fn new_terminal(task_type: TaskType, args: Option<Args>) -> Self {
-        Goal { task_type, args, is_terminal_goal: true }
-    }
-}
-
-impl From<TaskType> for Goal {
-    fn from(task_type: TaskType) -> Self {
-        match task_type {
-            TaskType::LoginToVault => Goal::new(TaskType::LoginToVault, None),
-            TaskType::PerformSso => Goal::new(TaskType::PerformSso, None),
-            TaskType::SelectActuatorService => Goal::new(TaskType::SelectActuatorService, None),
-            TaskType::SelectAwsProfile => Goal::new(TaskType::SelectAwsProfile, Some(Args {
-                command: ArcCommand::Switch {
-                    aws_profile: true,
-                    kube_context: false,
-                    use_current: true,
-                }
-            })),
-            TaskType::SelectInfluxInstance => Goal::new(TaskType::SelectInfluxInstance, None),
-            TaskType::SelectKubeContext => Goal::new(TaskType::SelectKubeContext, Some(Args {
-                command: ArcCommand::Switch {
-                    aws_profile: false,
-                    kube_context: true,
-                    use_current: true,
-                }
-            })),
-            TaskType::SelectRdsInstance => Goal::new(TaskType::SelectRdsInstance, None),
-            _ => panic!("TaskType=>Goal conversion is missing."),
-        }
-    }
-}
-
-impl From<&Goal> for String {
-    fn from(goal: &Goal) -> Self {
-        format!("{:?}", goal)
-    }
-}
+use crate::goals::{Goal, GoalStatus, OutroText};
+use crate::state::State;
 
 pub async fn run(args: &Args) -> Result<(), ArcError> {
     // A given Args with a single ArcCommand may map to multiple goals
@@ -186,26 +23,6 @@ pub async fn run(args: &Args) -> Result<(), ArcError> {
 
     // Execute each goal, including any dependent goals
     execute_goals(terminal_goals).await
-}
-
-enum GoalStatus {
-    Completed(TaskResult, OutroText),
-    Needs(Goal),
-}
-
-enum OutroText {
-    SingleLine{ key: String, value: String },
-    MultiLine{ key: String, value: String },
-    None,
-}
-
-impl OutroText {
-    pub fn single(key: String, value: String) -> OutroText {
-        OutroText::SingleLine { key, value }
-    }
-    pub fn multi(key: String, value: String) -> OutroText {
-        OutroText::MultiLine { key, value }
-    }
 }
 
 async fn execute_goals(terminal_goals: Vec<Goal>) -> Result<(), ArcError> {
@@ -246,10 +63,10 @@ async fn execute_goals(terminal_goals: Vec<Goal>) -> Result<(), ArcError> {
             GoalStatus::Completed(result, outro_text) => {
                 if *is_terminal_goal {
                     // Print outro message
-                    if let SingleLine{ key, value } = outro_text {
+                    if let OutroText::SingleLine{ key, value } = outro_text {
                         let text = format!("{}: {}", style(key).green(), style(value).dim());
                         outro(text)?;
-                    } else if let MultiLine{ key, value } = outro_text {
+                    } else if let OutroText::MultiLine{ key, value } = outro_text {
                         let prompt = style(key).green();
                         let message = style(value).dim();
                         outro_note(prompt, message)?;
@@ -271,87 +88,6 @@ async fn execute_goals(terminal_goals: Vec<Goal>) -> Result<(), ArcError> {
     // This is the final output that the parent shell should eval.
     // All other program outputs are sent to stderr (i.e. clickack interactive menus, outros, etc).
     Ok(println!("{eval_string}"))
-}
-
-pub struct State {
-    results: HashMap<Goal, TaskResult>,
-}
-
-impl State {
-    fn new() -> Self {
-        State { results: HashMap::new() }
-    }
-
-    fn contains(&self, goal: &Goal) -> bool {
-        self.results.contains_key(goal)
-    }
-
-    fn insert(&mut self, goal: Goal, result: TaskResult) {
-        self.results.insert(goal, result);
-    }
-
-    fn get(&self, goal: &Goal) -> Result<&TaskResult, ArcError> {
-        self.results.get(goal).ok_or_else(|| ArcError::insufficient_state(goal))
-    }
-
-    pub(crate) fn get_actuator_service(&self, goal: &Goal) -> Result<&ActuatorService, ArcError> {
-        match self.get(goal)? {
-            TaskResult::ActuatorService(x) => Ok(x),
-            result => Err(ArcError::invalid_state(goal, "ActuatorService", result)),
-        }
-    }
-
-    pub(crate) fn get_aws_profile_info(&self, goal: &Goal) -> Result<&AwsProfileInfo, ArcError> {
-        match self.get(goal)? {
-            TaskResult::AwsProfile { profile, .. } => Ok(profile),
-            result => Err(ArcError::invalid_state(goal, "AwsProfile", result)),
-        }
-    }
-
-    pub(crate) fn get_aws_secret(&self, goal: &Goal) -> Result<Value, ArcError> {
-        match self.get(goal)? {
-            TaskResult::AwsSecret(x) => {
-                let secret_json: Value = serde_json::from_str(x)?;
-                Ok(secret_json)
-            },
-            result => Err(ArcError::invalid_state(goal, "AwsSecret", result)),
-        }
-    }
-
-    pub(crate) fn get_influx_instance(&self, goal: &Goal) -> Result<&InfluxInstance, ArcError> {
-        match self.get(goal)? {
-            TaskResult::InfluxInstance(x) => Ok(x),
-            result => Err(ArcError::invalid_state(goal, "InfluxInstance", result)),
-        }
-    }
-
-    pub(crate) fn get_kube_context_info(&self, goal: &Goal) -> Result<&KubeContextInfo, ArcError> {
-        match self.get(goal)? {
-            TaskResult::KubeContext { context, .. } => Ok(context),
-            result => Err(ArcError::invalid_state(goal, "KubeContext", result)),
-        }
-    }
-
-    pub(crate) fn get_port_forward_info(&self, goal: &Goal) -> Result<&PortForwardInfo, ArcError> {
-        match self.get(goal)? {
-            TaskResult::PortForward(info) => Ok(info),
-            result => Err(ArcError::invalid_state(goal, "PortForward", result)),
-        }
-    }
-
-    pub(crate) fn get_rds_instance(&self, goal: &Goal) -> Result<&RdsInstance, ArcError> {
-        match self.get(goal)? {
-            TaskResult::RdsInstance(x) => Ok(x),
-            result => Err(ArcError::invalid_state(goal, "RdsInstance", result)),
-        }
-    }
-
-    pub(crate) fn get_vault_token(&self, goal: &Goal) -> Result<String, ArcError> {
-        match self.get(goal)? {
-            TaskResult::VaultToken(x) => Ok(x.clone()),
-            result => Err(ArcError::invalid_state(goal, "VaultToken", result)),
-        }
-    }
 }
 
 fn config_path() -> Result<std::path::PathBuf, ArcError> {

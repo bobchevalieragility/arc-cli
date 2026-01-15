@@ -2,8 +2,11 @@ use cliclack::{intro, select};
 use async_trait::async_trait;
 use clap::CommandFactory;
 use clap_complete::{generate, Shell};
-use crate::{config_path, Args, GoalStatus, OutroText, State};
+use crate::args::Args;
+use crate::config_path;
 use crate::errors::ArcError;
+use crate::goals::{GoalStatus, OutroText};
+use crate::state::State;
 use crate::tasks::{Task, TaskResult};
 
 #[derive(Debug)]

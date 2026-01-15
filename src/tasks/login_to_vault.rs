@@ -4,11 +4,13 @@ use std::fs;
 use url::Url;
 use vaultrs::auth::oidc;
 use vaultrs::token;
-
-use crate::{config_path, Args, Goal, GoalStatus, OutroText, State};
+use crate::args::Args;
+use crate::config_path;
 use crate::aws::vault;
 use crate::aws::vault::VaultInstance;
 use crate::errors::ArcError;
+use crate::goals::{Goal, GoalStatus, OutroText};
+use crate::state::State;
 use crate::tasks::{Task, TaskResult, TaskType};
 
 #[derive(Debug)]
