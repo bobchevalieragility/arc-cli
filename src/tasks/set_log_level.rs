@@ -20,7 +20,7 @@ impl Task for SetLogLevelTask {
 
     async fn execute(&self, params: &GoalParams, state: &State) -> Result<GoalStatus, ArcError> {
         // Ensure that SSO token has not expired
-        let sso_goal = GoalType::SsoTokenValid.into();
+        let sso_goal = Goal::sso_token_valid();
         if !state.contains(&sso_goal) {
             return Ok(GoalStatus::Needs(sso_goal));
         }
@@ -31,7 +31,7 @@ impl Task for SetLogLevelTask {
             _ => return Err(ArcError::invalid_goal_params(GoalType::LogLevelSet, params)),
         };
 
-        let svc_selection_goal = GoalType::ActuatorServiceSelected.into();
+        let svc_selection_goal = Goal::actuator_service_selected();
         if let None = service_arg && !state.contains(&svc_selection_goal) {
             // Since service name not provided in args, we need to wait for service selection goal
             return Ok(GoalStatus::Needs(svc_selection_goal));
@@ -44,10 +44,7 @@ impl Task for SetLogLevelTask {
         };
 
         // If a port-forwarding session doesn't exist, we need to wait for that goal to complete
-        let port_fwd_goal = Goal::new(
-            GoalType::PortForwardEstablished,
-            GoalParams::PortForwardEstablished { service: Some(service), port: None, tear_down: true }
-        );
+        let port_fwd_goal = Goal::port_forward_established(service);
         if !state.contains(&port_fwd_goal) {
             return Ok(GoalStatus::Needs(port_fwd_goal));
         }

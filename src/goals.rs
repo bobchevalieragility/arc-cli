@@ -24,47 +24,105 @@ pub struct Goal {
 }
 
 impl Goal {
-    pub fn new(goal_type: GoalType, params: GoalParams) -> Self {
+    fn new(goal_type: GoalType, params: GoalParams) -> Self {
         Goal { goal_type, params, is_terminal_goal: false }
     }
-    pub fn new_terminal(goal_type: GoalType, params: GoalParams) -> Self {
+
+    fn new_terminal(goal_type: GoalType, params: GoalParams) -> Self {
         Goal { goal_type, params, is_terminal_goal: true }
     }
-}
 
-impl From<GoalType> for Goal {
-    fn from(goal_type: GoalType) -> Self {
-        match goal_type {
-            GoalType::ActuatorServiceSelected => Goal::new(
-                GoalType::ActuatorServiceSelected,
-                GoalParams::None
-            ),
-            GoalType::AwsProfileSelected => Goal::new(
-                GoalType::AwsProfileSelected,
-                GoalParams::AwsProfileSelected { use_current: true },
-            ),
-            GoalType::InfluxInstanceSelected => Goal::new(
-                GoalType::InfluxInstanceSelected,
-                GoalParams::None
-            ),
-            GoalType::KubeContextSelected => Goal::new(
-                GoalType::KubeContextSelected,
-                GoalParams::KubeContextSelected { use_current: true},
-            ),
-            GoalType::RdsInstanceSelected => Goal::new(
-                GoalType::RdsInstanceSelected,
-                GoalParams::None
-            ),
-            GoalType::SsoTokenValid => Goal::new(
-                GoalType::SsoTokenValid,
-                GoalParams::None
-            ),
-            GoalType::VaultTokenValid => Goal::new(
-                GoalType::VaultTokenValid,
-                GoalParams::None
-            ),
-            _ => panic!("GoalType=>Goal conversion is missing."),
-        }
+    pub fn actuator_service_selected() -> Self {
+        Goal::new(GoalType::ActuatorServiceSelected, GoalParams::None)
+    }
+
+    //TODO is use_current always true for non-terminal goals?
+    pub fn aws_profile_selected(use_current: bool) -> Self {
+        let params = GoalParams::AwsProfileSelected { use_current };
+        Goal::new(GoalType::AwsProfileSelected, params)
+    }
+
+    pub fn terminal_aws_profile_selected() -> Self {
+        let params = GoalParams::AwsProfileSelected { use_current: false };
+        Goal::new_terminal(GoalType::AwsProfileSelected, params)
+    }
+
+    pub fn aws_secret_known(secret_name: String) -> Self {
+        let params = GoalParams::AwsSecretKnown { name: Some(secret_name) };
+        Goal::new(GoalType::AwsSecretKnown, params)
+    }
+
+    pub fn terminal_aws_secret_known(name: Option<String>) -> Self {
+        let params = GoalParams::AwsSecretKnown { name };
+        Goal::new_terminal(GoalType::AwsSecretKnown, params)
+    }
+
+    pub fn influx_instance_selected() -> Self {
+        Goal::new(GoalType::InfluxInstanceSelected, GoalParams::None)
+    }
+
+    pub fn terminal_influx_launched() -> Self {
+        Goal::new_terminal(GoalType::InfluxLaunched, GoalParams::None)
+    }
+
+    //TODO is use_current always true for non-terminal goals?
+    pub fn kube_context_selected(use_current: bool) -> Self {
+        let params = GoalParams::KubeContextSelected { use_current };
+        Goal::new(GoalType::KubeContextSelected, params)
+    }
+
+    pub fn terminal_kube_context_selected() -> Self {
+        let params = GoalParams::KubeContextSelected { use_current: false };
+        Goal::new_terminal(GoalType::KubeContextSelected, params)
+    }
+
+    pub fn terminal_log_level_set(
+        service: Option<String>,
+        package: String,
+        level: Option<Level>,
+        display_only: bool
+    ) -> Self {
+        let params = GoalParams::LogLevelSet { service, package, level, display_only };
+        Goal::new_terminal(GoalType::LogLevelSet, params)
+    }
+
+    pub fn terminal_pgcli_running() -> Self {
+        Goal::new_terminal(GoalType::PgcliRunning, GoalParams::None)
+    }
+
+    pub fn port_forward_established(service: String) -> Self {
+        let params = GoalParams::PortForwardEstablished {
+            service: Some(service),
+            port: None,
+            tear_down: false
+        };
+        Goal::new(GoalType::PortForwardEstablished, params)
+    }
+
+    pub fn terminal_port_forward_established(service: Option<String>, port: Option<u16>) -> Self {
+        let params = GoalParams::PortForwardEstablished { service, port, tear_down: true };
+        Goal::new_terminal(GoalType::PortForwardEstablished, params)
+    }
+
+    pub fn rds_instance_selected() -> Self {
+        Goal::new(GoalType::RdsInstanceSelected, GoalParams::None)
+    }
+
+    pub fn sso_token_valid() -> Self {
+        Goal::new(GoalType::SsoTokenValid, GoalParams::None)
+    }
+
+    pub fn terminal_tab_completions() -> Self {
+        Goal::new_terminal(GoalType::TabCompletionsExist, GoalParams::None)
+    }
+
+    pub fn vault_token_valid() -> Self {
+        Goal::new(GoalType::VaultTokenValid, GoalParams::None)
+    }
+
+    pub fn terminal_vault_secret_known(path: Option<String>, field: Option<String>) -> Self {
+        let params = GoalParams::VaultSecretKnown { path, field };
+        Goal::new_terminal(GoalType::VaultSecretKnown, params)
     }
 }
 

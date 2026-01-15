@@ -1,7 +1,6 @@
 use clap::{Parser, Subcommand};
 use std;
 use std::convert::From;
-use crate::goals::{GoalParams, GoalType};
 use crate::tasks::set_log_level::Level;
 use crate::goals::Goal;
 
@@ -52,9 +51,6 @@ pub enum CliCommand {
 
         #[arg(short, long, help = "Local port (defaults to random, unused port)")]
         port: Option<u16>,
-
-        // #[arg(short, long, help = "Tear down port-forwarding when command exits")]
-        // tear_down: bool,
     },
     #[command(about = "Switch AWS profile and/or Kubernetes context")]
     Switch {
@@ -63,84 +59,42 @@ pub enum CliCommand {
 
         #[arg(short, long, help = "Switch kube context (if false and kube_context is false, will switch both)")]
         kube_context: bool,
-
-        // #[arg(short, long, help = "Whether to skip if already set (defaults to false)")]
-        // use_current: bool,
     },
     #[command(about = "Generate a shell completion script")]
     Completions,
-    // #[command(about = "Temporary command to test SSO")]
-    // Sso,
 }
 
-//TODO can we get rid of the is_terminal_goal flag now that we have these internal params?
 impl CliCommand {
     pub(crate) fn to_goals(self) -> Vec<Goal> {
         match self {
             CliCommand::AwsSecret { name } => vec![
-                Goal::new_terminal(
-                    GoalType::AwsSecretKnown,
-                    GoalParams::AwsSecretKnown{ name }
-                )
+                Goal::terminal_aws_secret_known(name)
             ],
-            CliCommand::Completions => vec![
-                Goal::new_terminal(GoalType::TabCompletionsExist, GoalParams::None)
-            ],
+            CliCommand::Completions => vec![Goal::terminal_tab_completions()],
             CliCommand::LogLevel { service, package, level, display_only } => vec![
-                Goal::new_terminal(
-                    GoalType::LogLevelSet,
-                    GoalParams::LogLevelSet{ service, package, level, display_only }
-                )
+                Goal::terminal_log_level_set(service, package, level, display_only)
             ],
-            CliCommand::Pgcli => vec![
-                Goal::new_terminal(GoalType::PgcliRunning, GoalParams::None)
-            ],
+            CliCommand::Pgcli => vec![Goal::terminal_pgcli_running()],
             CliCommand::PortForward { service, port } => vec![
-                Goal::new_terminal(
-                    GoalType::PortForwardEstablished,
-                    GoalParams::PortForwardEstablished{ service, port, tear_down: false }
-                )
+                Goal::terminal_port_forward_established(service, port)
             ],
-            CliCommand::Influx => vec![
-                Goal::new_terminal(GoalType::InfluxLaunched, GoalParams::None)
-            ],
+            CliCommand::Influx => vec![Goal::terminal_influx_launched()],
             CliCommand::Switch { aws_profile: true, kube_context: true } => vec![
-                Goal::new_terminal(
-                    GoalType::AwsProfileSelected,
-                    GoalParams::AwsProfileSelected { use_current: false }
-                ),
-                Goal::new_terminal(
-                    GoalType::KubeContextSelected,
-                    GoalParams::KubeContextSelected { use_current: false }
-                ),
+                Goal::terminal_aws_profile_selected(),
+                Goal::terminal_kube_context_selected(),
             ],
             CliCommand::Switch { aws_profile: false, kube_context: false } => vec![
-                Goal::new_terminal(
-                    GoalType::AwsProfileSelected,
-                    GoalParams::AwsProfileSelected { use_current: false }
-                ),
-                Goal::new_terminal(
-                    GoalType::KubeContextSelected,
-                    GoalParams::KubeContextSelected { use_current: false }
-                ),
+                Goal::terminal_aws_profile_selected(),
+                Goal::terminal_kube_context_selected(),
             ],
             CliCommand::Switch { aws_profile: true, kube_context: false } => vec![
-                Goal::new_terminal(
-                    GoalType::AwsProfileSelected,
-                    GoalParams::AwsProfileSelected { use_current: false }
-                ),
+                Goal::terminal_aws_profile_selected(),
             ],
             CliCommand::Switch { aws_profile: false, kube_context: true } => vec![
-                Goal::new_terminal(
-                    GoalType::KubeContextSelected,
-                    GoalParams::KubeContextSelected { use_current: false }
-                ),
+                Goal::terminal_kube_context_selected(),
             ],
             CliCommand::Vault { path, field } => vec![
-                Goal::new_terminal(
-                    GoalType::VaultSecretKnown,
-                    GoalParams::VaultSecretKnown { path, field }
-                ),
+                Goal::terminal_vault_secret_known(path, field)
             ],
         }
     }

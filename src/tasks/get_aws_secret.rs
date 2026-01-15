@@ -4,7 +4,7 @@ use aws_sdk_secretsmanager::Client;
 use aws_types::region::Region;
 use cliclack::{intro, select};
 use crate::errors::ArcError;
-use crate::goals::{GoalParams, GoalType};
+use crate::goals::{Goal, GoalParams, GoalType};
 use crate::{GoalStatus, OutroText};
 use crate::state::State;
 use crate::tasks::{Task, TaskResult};
@@ -21,13 +21,13 @@ impl Task for GetAwsSecretTask {
 
     async fn execute(&self, params: &GoalParams, state: &State) -> Result<GoalStatus, ArcError> {
         // Ensure that SSO token has not expired
-        let sso_goal = GoalType::SsoTokenValid.into();
+        let sso_goal = Goal::sso_token_valid();
         if !state.contains(&sso_goal) {
             return Ok(GoalStatus::Needs(sso_goal));
         }
 
         // If AWS profile info is not available, we need to wait for that goal to complete
-        let profile_goal = GoalType::AwsProfileSelected.into();
+        let profile_goal = Goal::aws_profile_selected(true);
         if !state.contains(&profile_goal) {
             return Ok(GoalStatus::Needs(profile_goal));
         }

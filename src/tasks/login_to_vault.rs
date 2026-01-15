@@ -8,7 +8,7 @@ use crate::{config_path, GoalStatus, OutroText};
 use crate::aws::vault;
 use crate::aws::vault::VaultInstance;
 use crate::errors::ArcError;
-use crate::goals::{GoalParams, GoalType};
+use crate::goals::{Goal, GoalParams};
 use crate::state::State;
 use crate::tasks::{Task, TaskResult};
 
@@ -24,7 +24,7 @@ impl Task for LoginToVaultTask {
 
     async fn execute(&self, _params: &GoalParams, state: &State) -> Result<GoalStatus, ArcError> {
         // If AWS profile info is not available, we need to wait for that goal to complete
-        let profile_goal = GoalType::AwsProfileSelected.into();
+        let profile_goal = Goal::aws_profile_selected(true);
         if !state.contains(&profile_goal) {
             return Ok(GoalStatus::Needs(profile_goal));
         }

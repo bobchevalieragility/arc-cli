@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use cliclack::intro;
 use crate::errors::ArcError;
-use crate::goals::{Goal, GoalParams, GoalType};
+use crate::goals::{Goal, GoalParams};
 use crate::{GoalStatus, OutroText};
 use crate::state::State;
 use crate::tasks::{Task, TaskResult};
@@ -18,13 +18,13 @@ impl Task for RunPgcliTask {
 
     async fn execute(&self, _params: &GoalParams, state: &State) -> Result<GoalStatus, ArcError> {
         // Ensure that SSO token has not expired
-        let sso_goal = GoalType::SsoTokenValid.into();
+        let sso_goal = Goal::sso_token_valid();
         if !state.contains(&sso_goal) {
             return Ok(GoalStatus::Needs(sso_goal));
         }
 
         // If an RDS instance has not yet been selected, we need to wait for that goal to complete
-        let rds_selection_goal = GoalType::RdsInstanceSelected.into();
+        let rds_selection_goal = Goal::rds_instance_selected();
         if !state.contains(&rds_selection_goal) {
             return Ok(GoalStatus::Needs(rds_selection_goal));
         }
@@ -34,12 +34,7 @@ impl Task for RunPgcliTask {
 
         // If the password for this RDS instance has not yet been retrieved, we need to wait for that goal to complete
         let rds_secret_name = rds_instance.secret_id().to_string();
-        //TODO create constructor methods on Goal (i.e. Goal::aws_secret_known(String))
-        // these constructor methods could replace the From<GoalType> impl
-        let secret_goal = Goal::new(
-            GoalType::AwsSecretKnown,
-            GoalParams::AwsSecretKnown { name: Some(rds_secret_name) }
-        );
+        let secret_goal = Goal::aws_secret_known(rds_secret_name);
         if !state.contains(&secret_goal) {
             return Ok(GoalStatus::Needs(secret_goal));
         }

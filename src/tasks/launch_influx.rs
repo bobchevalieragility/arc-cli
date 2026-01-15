@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use cliclack::intro;
 use crate::errors::ArcError;
-use crate::goals::{Goal, GoalParams, GoalType};
+use crate::goals::{Goal, GoalParams};
 use crate::{GoalStatus, OutroText};
 use crate::state::State;
 use crate::tasks::{Task, TaskResult};
@@ -18,13 +18,13 @@ impl Task for LaunchInfluxTask {
 
     async fn execute(&self, _params: &GoalParams, state: &State) -> Result<GoalStatus, ArcError> {
         // Ensure that SSO token has not expired
-        let sso_goal = GoalType::SsoTokenValid.into();
+        let sso_goal = Goal::sso_token_valid();
         if !state.contains(&sso_goal) {
             return Ok(GoalStatus::Needs(sso_goal));
         }
 
         // If an Influx instance has not yet been selected, we need to wait for that goal to complete
-        let influx_selection_goal = GoalType::InfluxInstanceSelected.into();
+        let influx_selection_goal = Goal::influx_instance_selected();
         if !state.contains(&influx_selection_goal) {
             return Ok(GoalStatus::Needs(influx_selection_goal));
         }
@@ -34,10 +34,7 @@ impl Task for LaunchInfluxTask {
 
         // If the password for this Influx instance has not yet been retrieved, we need to wait for that goal to complete
         let influx_secret_name = influx_instance.secret_id().to_string();
-        let secret_goal = Goal::new(
-            GoalType::AwsSecretKnown,
-            GoalParams::AwsSecretKnown { name: Some(influx_secret_name) }
-        );
+        let secret_goal = Goal::aws_secret_known(influx_secret_name);
         if !state.contains(&secret_goal) {
             return Ok(GoalStatus::Needs(secret_goal));
         }
