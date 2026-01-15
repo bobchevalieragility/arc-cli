@@ -7,7 +7,8 @@ use crate::args::{CliCommand, CliArgs};
 use crate::tasks::{Task, TaskResult};
 use crate::aws::vault;
 use crate::errors::ArcError;
-use crate::goals::{GoalStatus, GoalType, OutroText};
+use crate::goals::GoalType;
+use crate::{GoalStatus, OutroText};
 use crate::state::State;
 
 #[derive(Debug)]
@@ -26,13 +27,13 @@ impl Task for GetVaultSecretTask {
             .ok_or_else(|| ArcError::invalid_arc_command("Vault", "None"))?;
 
         // If AWS profile info is not available, we need to wait for that goal to complete
-        let profile_goal = GoalType::SelectAwsProfile.into();
+        let profile_goal = GoalType::AwsProfileSelected.into();
         if !state.contains(&profile_goal) {
             return Ok(GoalStatus::Needs(profile_goal));
         }
 
         // If we haven't obtained a valid Vault token yet, we need to wait for that goal to complete
-        let login_goal = GoalType::LoginToVault.into();
+        let login_goal = GoalType::VaultTokenValid.into();
         if !state.contains(&login_goal) {
             return Ok(GoalStatus::Needs(login_goal));
         }

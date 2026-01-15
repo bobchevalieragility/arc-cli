@@ -2,7 +2,7 @@ use cliclack::{intro, select};
 use async_trait::async_trait;
 use crate::args::CliArgs;
 use crate::errors::ArcError;
-use crate::goals::{GoalStatus, OutroText};
+use crate::{GoalStatus, OutroText};
 use crate::state::State;
 use crate::tasks::{Task, TaskResult};
 

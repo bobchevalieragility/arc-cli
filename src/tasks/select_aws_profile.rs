@@ -3,9 +3,8 @@ use async_trait::async_trait;
 use std::env;
 use crate::args::{CliCommand, CliArgs};
 use crate::aws::aws_account::AwsAccount;
-use crate::aws;
+use crate::{aws, GoalStatus, OutroText};
 use crate::errors::ArcError;
-use crate::goals::{GoalStatus, OutroText};
 use crate::state::State;
 use crate::tasks::{Task, TaskResult};
 

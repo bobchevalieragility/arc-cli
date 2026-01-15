@@ -77,38 +77,38 @@ impl CliArgs {
     pub(crate) fn to_goals(&self) -> Vec<Goal> {
         match self.command {
             CliCommand::AwsSecret { .. } => vec![
-                Goal::new_terminal(GoalType::GetAwsSecret, Some(self.clone()))
+                Goal::new_terminal(GoalType::AwsSecretKnown, Some(self.clone()))
             ],
             CliCommand::Completions => vec![
-                Goal::new_terminal(GoalType::CreateTabCompletions, Some(self.clone()))
+                Goal::new_terminal(GoalType::TabCompletionsExist, Some(self.clone()))
             ],
             CliCommand::LogLevel { .. } => vec![
-                Goal::new_terminal(GoalType::SetLogLevel, Some(self.clone()))
+                Goal::new_terminal(GoalType::LogLevelSet, Some(self.clone()))
             ],
             CliCommand::Pgcli => vec![
-                Goal::new_terminal(GoalType::RunPgcli, Some(self.clone()))
+                Goal::new_terminal(GoalType::PgcliRunning, Some(self.clone()))
             ],
             CliCommand::PortForward { .. } => vec![
-                Goal::new_terminal(GoalType::PortForward, Some(self.clone()))
+                Goal::new_terminal(GoalType::PortForwardEstablished, Some(self.clone()))
             ],
             CliCommand::Influx => vec![
-                Goal::new_terminal(GoalType::LaunchInflux, Some(self.clone()))
+                Goal::new_terminal(GoalType::InfluxLaunched, Some(self.clone()))
             ],
             CliCommand::Switch { aws_profile: true, .. } => vec![
-                Goal::new_terminal(GoalType::SelectAwsProfile, Some(self.clone()))
+                Goal::new_terminal(GoalType::AwsProfileSelected, Some(self.clone()))
             ],
             CliCommand::Switch { kube_context: true, .. } => vec![
-                Goal::new_terminal(GoalType::SelectKubeContext, Some(self.clone()))
+                Goal::new_terminal(GoalType::KubeContextSelected, Some(self.clone()))
             ],
             CliCommand::Switch { aws_profile: false, kube_context: false, .. } => vec![
-                Goal::new_terminal(GoalType::SelectKubeContext, Some(self.clone())),
-                Goal::new_terminal(GoalType::SelectAwsProfile, Some(self.clone()))
+                Goal::new_terminal(GoalType::KubeContextSelected, Some(self.clone())),
+                Goal::new_terminal(GoalType::AwsProfileSelected, Some(self.clone()))
             ],
             CliCommand::Vault { .. } => vec![
-                Goal::new_terminal(GoalType::GetVaultSecret, Some(self.clone()))
+                Goal::new_terminal(GoalType::VaultSecretKnown, Some(self.clone()))
             ],
             CliCommand::Sso => vec![
-                Goal::new_terminal(GoalType::PerformSso, Some(self.clone()))
+                Goal::new_terminal(GoalType::SsoTokenValid, Some(self.clone()))
             ],
         }
     }

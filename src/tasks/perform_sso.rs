@@ -5,9 +5,8 @@ use std::process::Command;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 use crate::args::CliArgs;
-use crate::aws;
+use crate::{aws, GoalStatus, OutroText};
 use crate::errors::ArcError;
-use crate::goals::{GoalStatus, OutroText};
 use crate::state::State;
 use crate::tasks::{Task, TaskResult};
 

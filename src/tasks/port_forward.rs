@@ -11,7 +11,8 @@ use tokio::task::AbortHandle;
 use crate::args::{CliCommand, CliArgs};
 use crate::aws::kube_service::KubeService;
 use crate::errors::ArcError;
-use crate::goals::{GoalStatus, GoalType, OutroText};
+use crate::goals::GoalType;
+use crate::{GoalStatus, OutroText};
 use crate::state::State;
 use crate::tasks::{sleep_indicator, Task, TaskResult};
 
@@ -31,13 +32,13 @@ impl Task for PortForwardTask {
             .ok_or_else(|| ArcError::invalid_arc_command("PortForward", "None"))?;
 
         // Ensure that SSO token has not expired
-        let sso_goal = GoalType::PerformSso.into();
+        let sso_goal = GoalType::SsoTokenValid.into();
         if !state.contains(&sso_goal) {
             return Ok(GoalStatus::Needs(sso_goal));
         }
 
         // If Kube context has not been selected, we need to wait for that goal to complete
-        let context_goal = GoalType::SelectKubeContext.into();
+        let context_goal = GoalType::KubeContextSelected.into();
         if !state.contains(&context_goal) {
             return Ok(GoalStatus::Needs(context_goal));
         }

@@ -5,7 +5,8 @@ use aws_types::region::Region;
 use cliclack::{intro, select};
 use crate::args::{CliCommand, CliArgs};
 use crate::errors::ArcError;
-use crate::goals::{GoalStatus, GoalType, OutroText};
+use crate::goals::GoalType;
+use crate::{GoalStatus, OutroText};
 use crate::state::State;
 use crate::tasks::{Task, TaskResult};
 
@@ -25,13 +26,13 @@ impl Task for GetAwsSecretTask {
             .ok_or_else(|| ArcError::invalid_arc_command("AwsSecret", "None"))?;
 
         // Ensure that SSO token has not expired
-        let sso_goal = GoalType::PerformSso.into();
+        let sso_goal = GoalType::SsoTokenValid.into();
         if !state.contains(&sso_goal) {
             return Ok(GoalStatus::Needs(sso_goal));
         }
 
         // If AWS profile info is not available, we need to wait for that goal to complete
-        let profile_goal = GoalType::SelectAwsProfile.into();
+        let profile_goal = GoalType::AwsProfileSelected.into();
         if !state.contains(&profile_goal) {
             return Ok(GoalStatus::Needs(profile_goal));
         }

@@ -6,7 +6,7 @@ use kube::config::Kubeconfig;
 use crate::args::{CliCommand, CliArgs};
 use crate::aws::eks_cluster::EksCluster;
 use crate::errors::ArcError;
-use crate::goals::{GoalStatus, OutroText};
+use crate::{GoalStatus, OutroText};
 use crate::state::State;
 use crate::tasks::{Task, TaskResult};
 

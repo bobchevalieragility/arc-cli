@@ -1,7 +1,7 @@
 use std;
 use std::convert::From;
 use crate::args::{CliCommand, CliArgs};
-use crate::tasks::{TaskResult, Task};
+use crate::tasks::Task;
 use crate::tasks::create_tab_completions::CreateTabCompletionsTask;
 use crate::tasks::get_aws_secret::GetAwsSecretTask;
 use crate::tasks::get_vault_secret::GetVaultSecretTask;
@@ -36,25 +36,25 @@ impl Goal {
 impl From<GoalType> for Goal {
     fn from(task_type: GoalType) -> Self {
         match task_type {
-            GoalType::LoginToVault => Goal::new(GoalType::LoginToVault, None),
-            GoalType::PerformSso => Goal::new(GoalType::PerformSso, None),
-            GoalType::SelectActuatorService => Goal::new(GoalType::SelectActuatorService, None),
-            GoalType::SelectAwsProfile => Goal::new(GoalType::SelectAwsProfile, Some(CliArgs {
+            GoalType::VaultTokenValid => Goal::new(GoalType::VaultTokenValid, None),
+            GoalType::SsoTokenValid => Goal::new(GoalType::SsoTokenValid, None),
+            GoalType::ActuatorServiceSelected => Goal::new(GoalType::ActuatorServiceSelected, None),
+            GoalType::AwsProfileSelected => Goal::new(GoalType::AwsProfileSelected, Some(CliArgs {
                 command: CliCommand::Switch {
                     aws_profile: true,
                     kube_context: false,
                     use_current: true,
                 }
             })),
-            GoalType::SelectInfluxInstance => Goal::new(GoalType::SelectInfluxInstance, None),
-            GoalType::SelectKubeContext => Goal::new(GoalType::SelectKubeContext, Some(CliArgs {
+            GoalType::InfluxInstanceSelected => Goal::new(GoalType::InfluxInstanceSelected, None),
+            GoalType::KubeContextSelected => Goal::new(GoalType::KubeContextSelected, Some(CliArgs {
                 command: CliCommand::Switch {
                     aws_profile: false,
                     kube_context: true,
                     use_current: true,
                 }
             })),
-            GoalType::SelectRdsInstance => Goal::new(GoalType::SelectRdsInstance, None),
+            GoalType::RdsInstanceSelected => Goal::new(GoalType::RdsInstanceSelected, None),
             _ => panic!("GoalType=>Goal conversion is missing."),
         }
     }
@@ -68,59 +68,39 @@ impl From<&Goal> for String {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum GoalType {
-    CreateTabCompletions,
-    GetAwsSecret,
-    GetVaultSecret,
-    LaunchInflux,
-    LoginToVault,
-    PerformSso,
-    PortForward,
-    RunPgcli,
-    SelectActuatorService,
-    SelectAwsProfile,
-    SelectInfluxInstance,
-    SelectKubeContext,
-    SelectRdsInstance,
-    SetLogLevel,
+    ActuatorServiceSelected,
+    AwsProfileSelected,
+    AwsSecretKnown,
+    InfluxInstanceSelected,
+    InfluxLaunched,
+    KubeContextSelected,
+    LogLevelSet,
+    PgcliRunning,
+    PortForwardEstablished,
+    RdsInstanceSelected,
+    SsoTokenValid,
+    TabCompletionsExist,
+    VaultSecretKnown,
+    VaultTokenValid,
 }
 
 impl GoalType {
     pub fn to_task(&self) -> Box<dyn Task> {
         match self {
-            GoalType::CreateTabCompletions => Box::new(CreateTabCompletionsTask),
-            GoalType::GetAwsSecret => Box::new(GetAwsSecretTask),
-            GoalType::GetVaultSecret => Box::new(GetVaultSecretTask),
-            GoalType::LaunchInflux => Box::new(LaunchInfluxTask),
-            GoalType::LoginToVault => Box::new(LoginToVaultTask),
-            GoalType::PerformSso => Box::new(PerformSsoTask),
-            GoalType::PortForward => Box::new(PortForwardTask),
-            GoalType::RunPgcli => Box::new(RunPgcliTask),
-            GoalType::SelectActuatorService => Box::new(SelectActuatorServiceTask),
-            GoalType::SelectAwsProfile => Box::new(SelectAwsProfileTask),
-            GoalType::SelectInfluxInstance => Box::new(SelectInfluxInstanceTask),
-            GoalType::SelectKubeContext => Box::new(SelectKubeContextTask),
-            GoalType::SelectRdsInstance => Box::new(SelectRdsInstanceTask),
-            GoalType::SetLogLevel => Box::new(SetLogLevelTask),
+            GoalType::TabCompletionsExist => Box::new(CreateTabCompletionsTask),
+            GoalType::AwsSecretKnown => Box::new(GetAwsSecretTask),
+            GoalType::VaultSecretKnown => Box::new(GetVaultSecretTask),
+            GoalType::InfluxLaunched => Box::new(LaunchInfluxTask),
+            GoalType::VaultTokenValid => Box::new(LoginToVaultTask),
+            GoalType::SsoTokenValid => Box::new(PerformSsoTask),
+            GoalType::PortForwardEstablished => Box::new(PortForwardTask),
+            GoalType::PgcliRunning => Box::new(RunPgcliTask),
+            GoalType::ActuatorServiceSelected => Box::new(SelectActuatorServiceTask),
+            GoalType::AwsProfileSelected => Box::new(SelectAwsProfileTask),
+            GoalType::InfluxInstanceSelected => Box::new(SelectInfluxInstanceTask),
+            GoalType::KubeContextSelected => Box::new(SelectKubeContextTask),
+            GoalType::RdsInstanceSelected => Box::new(SelectRdsInstanceTask),
+            GoalType::LogLevelSet => Box::new(SetLogLevelTask),
         }
-    }
-}
-
-pub enum GoalStatus {
-    Completed(TaskResult, OutroText),
-    Needs(Goal),
-}
-
-pub enum OutroText {
-    SingleLine{ key: String, value: String },
-    MultiLine{ key: String, value: String },
-    None,
-}
-
-impl OutroText {
-    pub fn single(key: String, value: String) -> OutroText {
-        OutroText::SingleLine { key, value }
-    }
-    pub fn multi(key: String, value: String) -> OutroText {
-        OutroText::MultiLine { key, value }
     }
 }

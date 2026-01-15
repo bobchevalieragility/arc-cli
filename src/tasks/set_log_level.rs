@@ -4,7 +4,8 @@ use clap::ValueEnum;
 use serde_json::Value;
 use crate::args::{CliCommand, CliArgs};
 use crate::errors::ArcError;
-use crate::goals::{Goal, GoalStatus, GoalType, OutroText};
+use crate::goals::{Goal, GoalType};
+use crate::{GoalStatus, OutroText};
 use crate::state::State;
 use crate::tasks::{Task, TaskResult};
 
@@ -24,7 +25,7 @@ impl Task for SetLogLevelTask {
             .ok_or_else(|| ArcError::invalid_arc_command("LogLevel", "None"))?;
 
         // Ensure that SSO token has not expired
-        let sso_goal = GoalType::PerformSso.into();
+        let sso_goal = GoalType::SsoTokenValid.into();
         if !state.contains(&sso_goal) {
             return Ok(GoalStatus::Needs(sso_goal));
         }
@@ -35,7 +36,7 @@ impl Task for SetLogLevelTask {
             _ => return Err(ArcError::invalid_arc_command("LogLevel", format!("{:?}", args.command))),
         };
 
-        let svc_selection_goal = GoalType::SelectActuatorService.into();
+        let svc_selection_goal = GoalType::ActuatorServiceSelected.into();
         if let None = service_arg && !state.contains(&svc_selection_goal) {
             // Since service name not provided in args, we need to wait for service selection goal
             return Ok(GoalStatus::Needs(svc_selection_goal));
@@ -48,7 +49,7 @@ impl Task for SetLogLevelTask {
         };
 
         // If a port-forwarding session doesn't exist, we need to wait for that goal to complete
-        let port_fwd_goal = Goal::new(GoalType::PortForward, Some(CliArgs {
+        let port_fwd_goal = Goal::new(GoalType::PortForwardEstablished, Some(CliArgs {
             command: CliCommand::PortForward { service: Some(service), port: None, tear_down: true }
         }));
         if !state.contains(&port_fwd_goal) {

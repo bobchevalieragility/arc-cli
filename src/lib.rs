@@ -13,8 +13,9 @@ use cliclack::{outro, outro_note};
 use console::style;
 use crate::errors::ArcError;
 use std;
-use crate::goals::{Goal, GoalStatus, OutroText};
+use crate::goals::Goal;
 use crate::state::State;
+use crate::tasks::TaskResult;
 
 pub async fn run(args: &CliArgs) -> Result<(), ArcError> {
     // A given Args with a single ArcCommand may map to multiple goals
@@ -88,6 +89,26 @@ async fn execute_goals(terminal_goals: Vec<Goal>) -> Result<(), ArcError> {
     // This is the final output that the parent shell should eval.
     // All other program outputs are sent to stderr (i.e. clickack interactive menus, outros, etc).
     Ok(println!("{eval_string}"))
+}
+
+pub enum GoalStatus {
+    Completed(TaskResult, OutroText),
+    Needs(Goal),
+}
+
+pub enum OutroText {
+    SingleLine{ key: String, value: String },
+    MultiLine{ key: String, value: String },
+    None,
+}
+
+impl OutroText {
+    pub fn single(key: String, value: String) -> OutroText {
+        OutroText::SingleLine { key, value }
+    }
+    pub fn multi(key: String, value: String) -> OutroText {
+        OutroText::MultiLine { key, value }
+    }
 }
 
 fn config_path() -> Result<std::path::PathBuf, ArcError> {

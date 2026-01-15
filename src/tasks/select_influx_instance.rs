@@ -3,7 +3,8 @@ use async_trait::async_trait;
 use crate::args::CliArgs;
 use crate::aws::influx::InfluxInstance;
 use crate::errors::ArcError;
-use crate::goals::{GoalStatus, GoalType, OutroText};
+use crate::goals::GoalType;
+use crate::{GoalStatus, OutroText};
 use crate::state::State;
 use crate::tasks::{Task, TaskResult};
 
@@ -19,7 +20,7 @@ impl Task for SelectInfluxInstanceTask {
 
     async fn execute(&self, _args: &Option<CliArgs>, state: &State) -> Result<GoalStatus, ArcError> {
         // If AWS profile info is not available, we need to wait for that goal to complete
-        let profile_goal = GoalType::SelectAwsProfile.into();
+        let profile_goal = GoalType::AwsProfileSelected.into();
         if !state.contains(&profile_goal) {
             return Ok(GoalStatus::Needs(profile_goal));
         }
