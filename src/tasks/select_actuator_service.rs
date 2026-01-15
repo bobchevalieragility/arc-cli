@@ -36,19 +36,46 @@ impl Task for SelectActuatorServiceTask {
 
 #[derive(Debug)]
 pub enum ActuatorService {
+    BlockManagment,
+    DeviceManager,
+    EventLog,
+    EventResourceManagement,
+    FleetStatusManager,
     Metrics,
+    Scheduler,
+    UserManagement,
+    WebhookIntegration,
+    WorkcellMonolith,
 }
 
 impl ActuatorService {
     pub fn name(&self) -> &str {
         match self {
+            ActuatorService::BlockManagment => "block-management",
+            ActuatorService::DeviceManager => "device-manager",
+            ActuatorService::EventLog => "event-log",
+            ActuatorService::EventResourceManagement => "event-resource-management",
+            ActuatorService::FleetStatusManager => "fleet-status-manager",
             ActuatorService::Metrics => "metrics",
+            ActuatorService::Scheduler => "scheduler",
+            ActuatorService::UserManagement => "user-management",
+            ActuatorService::WebhookIntegration => "webhook-integration",
+            ActuatorService::WorkcellMonolith => "workcell-monolith",
         }
     }
 
     fn all() -> Vec<ActuatorService> {
         vec![
+            ActuatorService::BlockManagment,
+            ActuatorService::DeviceManager,
+            ActuatorService::EventLog,
+            ActuatorService::EventResourceManagement,
+            ActuatorService::FleetStatusManager,
             ActuatorService::Metrics,
+            ActuatorService::Scheduler,
+            ActuatorService::UserManagement,
+            ActuatorService::WebhookIntegration,
+            ActuatorService::WorkcellMonolith,
         ]
     }
 }
@@ -56,7 +83,16 @@ impl ActuatorService {
 impl From<&str> for ActuatorService {
     fn from(svc_name: &str) -> Self {
         match svc_name {
+            "block-management" => ActuatorService::BlockManagment,
+            "device-manager" => ActuatorService::DeviceManager,
+            "event-log" => ActuatorService::EventLog,
+            "event-resource-management" => ActuatorService::EventResourceManagement,
+            "fleet-status-manager" => ActuatorService::FleetStatusManager,
             "metrics" => ActuatorService::Metrics,
+            "scheduler" => ActuatorService::Scheduler,
+            "user-management" => ActuatorService::UserManagement,
+            "webhook-integration" => ActuatorService::WebhookIntegration,
+            "workcell-monolith" => ActuatorService::WorkcellMonolith,
             _ => panic!("Unknown service name: {svc_name}"),
         }
     }
