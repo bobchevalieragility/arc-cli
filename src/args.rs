@@ -1,19 +1,19 @@
-use std::convert::From;
 use clap::{Parser, Subcommand};
-use crate::tasks::TaskType;
-use crate::tasks::set_log_level::Level;
 use std;
+use std::convert::From;
+use crate::goals::GoalType;
+use crate::tasks::set_log_level::Level;
 use crate::goals::Goal;
 
 #[derive(Parser, Clone, Debug, PartialEq, Eq, Hash)]
 #[command(author, version, about = "CLI Tool for Arc Backend")]
-pub struct Args {
+pub struct CliArgs {
     #[command(subcommand)]
-    pub(crate) command: ArcCommand,
+    pub(crate) command: CliCommand,
 }
 
 #[derive(Subcommand, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum ArcCommand {
+pub enum CliCommand {
     #[command(about = "View or set the log level for a Java Spring Boot service")]
     LogLevel {
         #[arg(short, long, help = "Service name, e.g. 'metrics' (if omitted, will prompt)")]
@@ -73,42 +73,42 @@ pub enum ArcCommand {
     Sso,
 }
 
-impl Args {
+impl CliArgs {
     pub(crate) fn to_goals(&self) -> Vec<Goal> {
         match self.command {
-            ArcCommand::AwsSecret { .. } => vec![
-                Goal::new_terminal(TaskType::GetAwsSecret, Some(self.clone()))
+            CliCommand::AwsSecret { .. } => vec![
+                Goal::new_terminal(GoalType::GetAwsSecret, Some(self.clone()))
             ],
-            ArcCommand::Completions => vec![
-                Goal::new_terminal(TaskType::CreateTabCompletions, Some(self.clone()))
+            CliCommand::Completions => vec![
+                Goal::new_terminal(GoalType::CreateTabCompletions, Some(self.clone()))
             ],
-            ArcCommand::LogLevel { .. } => vec![
-                Goal::new_terminal(TaskType::SetLogLevel, Some(self.clone()))
+            CliCommand::LogLevel { .. } => vec![
+                Goal::new_terminal(GoalType::SetLogLevel, Some(self.clone()))
             ],
-            ArcCommand::Pgcli => vec![
-                Goal::new_terminal(TaskType::RunPgcli, Some(self.clone()))
+            CliCommand::Pgcli => vec![
+                Goal::new_terminal(GoalType::RunPgcli, Some(self.clone()))
             ],
-            ArcCommand::PortForward { .. } => vec![
-                Goal::new_terminal(TaskType::PortForward, Some(self.clone()))
+            CliCommand::PortForward { .. } => vec![
+                Goal::new_terminal(GoalType::PortForward, Some(self.clone()))
             ],
-            ArcCommand::Influx => vec![
-                Goal::new_terminal(TaskType::LaunchInflux, Some(self.clone()))
+            CliCommand::Influx => vec![
+                Goal::new_terminal(GoalType::LaunchInflux, Some(self.clone()))
             ],
-            ArcCommand::Switch { aws_profile: true, .. } => vec![
-                Goal::new_terminal(TaskType::SelectAwsProfile, Some(self.clone()))
+            CliCommand::Switch { aws_profile: true, .. } => vec![
+                Goal::new_terminal(GoalType::SelectAwsProfile, Some(self.clone()))
             ],
-            ArcCommand::Switch { kube_context: true, .. } => vec![
-                Goal::new_terminal(TaskType::SelectKubeContext, Some(self.clone()))
+            CliCommand::Switch { kube_context: true, .. } => vec![
+                Goal::new_terminal(GoalType::SelectKubeContext, Some(self.clone()))
             ],
-            ArcCommand::Switch { aws_profile: false, kube_context: false, .. } => vec![
-                Goal::new_terminal(TaskType::SelectKubeContext, Some(self.clone())),
-                Goal::new_terminal(TaskType::SelectAwsProfile, Some(self.clone()))
+            CliCommand::Switch { aws_profile: false, kube_context: false, .. } => vec![
+                Goal::new_terminal(GoalType::SelectKubeContext, Some(self.clone())),
+                Goal::new_terminal(GoalType::SelectAwsProfile, Some(self.clone()))
             ],
-            ArcCommand::Vault { .. } => vec![
-                Goal::new_terminal(TaskType::GetVaultSecret, Some(self.clone()))
+            CliCommand::Vault { .. } => vec![
+                Goal::new_terminal(GoalType::GetVaultSecret, Some(self.clone()))
             ],
-            ArcCommand::Sso => vec![
-                Goal::new_terminal(TaskType::PerformSso, Some(self.clone()))
+            CliCommand::Sso => vec![
+                Goal::new_terminal(GoalType::PerformSso, Some(self.clone()))
             ],
         }
     }

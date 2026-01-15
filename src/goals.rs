@@ -1,47 +1,61 @@
 use std;
 use std::convert::From;
-use crate::args::{ArcCommand, Args};
-use crate::tasks::{TaskResult, TaskType};
+use crate::args::{CliCommand, CliArgs};
+use crate::tasks::{TaskResult, Task};
+use crate::tasks::create_tab_completions::CreateTabCompletionsTask;
+use crate::tasks::get_aws_secret::GetAwsSecretTask;
+use crate::tasks::get_vault_secret::GetVaultSecretTask;
+use crate::tasks::launch_influx::LaunchInfluxTask;
+use crate::tasks::login_to_vault::LoginToVaultTask;
+use crate::tasks::perform_sso::PerformSsoTask;
+use crate::tasks::port_forward::PortForwardTask;
+use crate::tasks::run_pgcli::RunPgcliTask;
+use crate::tasks::select_actuator_service::SelectActuatorServiceTask;
+use crate::tasks::select_aws_profile::SelectAwsProfileTask;
+use crate::tasks::select_influx_instance::SelectInfluxInstanceTask;
+use crate::tasks::select_kube_context::SelectKubeContextTask;
+use crate::tasks::select_rds_instance::SelectRdsInstanceTask;
+use crate::tasks::set_log_level::SetLogLevelTask;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Goal {
-    pub(crate) task_type: TaskType,
-    pub(crate) args: Option<Args>,
+    pub(crate) goal_type: GoalType,
+    pub(crate) args: Option<CliArgs>,
     pub(crate) is_terminal_goal: bool,
 }
 
 impl Goal {
-    pub fn new(task_type: TaskType, args: Option<Args>) -> Self {
-        Goal { task_type, args, is_terminal_goal: false }
+    pub fn new(goal_type: GoalType, args: Option<CliArgs>) -> Self {
+        Goal { goal_type, args, is_terminal_goal: false }
     }
-    pub fn new_terminal(task_type: TaskType, args: Option<Args>) -> Self {
-        Goal { task_type, args, is_terminal_goal: true }
+    pub fn new_terminal(goal_type: GoalType, args: Option<CliArgs>) -> Self {
+        Goal { goal_type, args, is_terminal_goal: true }
     }
 }
 
-impl From<TaskType> for Goal {
-    fn from(task_type: TaskType) -> Self {
+impl From<GoalType> for Goal {
+    fn from(task_type: GoalType) -> Self {
         match task_type {
-            TaskType::LoginToVault => Goal::new(TaskType::LoginToVault, None),
-            TaskType::PerformSso => Goal::new(TaskType::PerformSso, None),
-            TaskType::SelectActuatorService => Goal::new(TaskType::SelectActuatorService, None),
-            TaskType::SelectAwsProfile => Goal::new(TaskType::SelectAwsProfile, Some(Args {
-                command: ArcCommand::Switch {
+            GoalType::LoginToVault => Goal::new(GoalType::LoginToVault, None),
+            GoalType::PerformSso => Goal::new(GoalType::PerformSso, None),
+            GoalType::SelectActuatorService => Goal::new(GoalType::SelectActuatorService, None),
+            GoalType::SelectAwsProfile => Goal::new(GoalType::SelectAwsProfile, Some(CliArgs {
+                command: CliCommand::Switch {
                     aws_profile: true,
                     kube_context: false,
                     use_current: true,
                 }
             })),
-            TaskType::SelectInfluxInstance => Goal::new(TaskType::SelectInfluxInstance, None),
-            TaskType::SelectKubeContext => Goal::new(TaskType::SelectKubeContext, Some(Args {
-                command: ArcCommand::Switch {
+            GoalType::SelectInfluxInstance => Goal::new(GoalType::SelectInfluxInstance, None),
+            GoalType::SelectKubeContext => Goal::new(GoalType::SelectKubeContext, Some(CliArgs {
+                command: CliCommand::Switch {
                     aws_profile: false,
                     kube_context: true,
                     use_current: true,
                 }
             })),
-            TaskType::SelectRdsInstance => Goal::new(TaskType::SelectRdsInstance, None),
-            _ => panic!("TaskType=>Goal conversion is missing."),
+            GoalType::SelectRdsInstance => Goal::new(GoalType::SelectRdsInstance, None),
+            _ => panic!("GoalType=>Goal conversion is missing."),
         }
     }
 }
@@ -49,6 +63,45 @@ impl From<TaskType> for Goal {
 impl From<&Goal> for String {
     fn from(goal: &Goal) -> Self {
         format!("{:?}", goal)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum GoalType {
+    CreateTabCompletions,
+    GetAwsSecret,
+    GetVaultSecret,
+    LaunchInflux,
+    LoginToVault,
+    PerformSso,
+    PortForward,
+    RunPgcli,
+    SelectActuatorService,
+    SelectAwsProfile,
+    SelectInfluxInstance,
+    SelectKubeContext,
+    SelectRdsInstance,
+    SetLogLevel,
+}
+
+impl GoalType {
+    pub fn to_task(&self) -> Box<dyn Task> {
+        match self {
+            GoalType::CreateTabCompletions => Box::new(CreateTabCompletionsTask),
+            GoalType::GetAwsSecret => Box::new(GetAwsSecretTask),
+            GoalType::GetVaultSecret => Box::new(GetVaultSecretTask),
+            GoalType::LaunchInflux => Box::new(LaunchInfluxTask),
+            GoalType::LoginToVault => Box::new(LoginToVaultTask),
+            GoalType::PerformSso => Box::new(PerformSsoTask),
+            GoalType::PortForward => Box::new(PortForwardTask),
+            GoalType::RunPgcli => Box::new(RunPgcliTask),
+            GoalType::SelectActuatorService => Box::new(SelectActuatorServiceTask),
+            GoalType::SelectAwsProfile => Box::new(SelectAwsProfileTask),
+            GoalType::SelectInfluxInstance => Box::new(SelectInfluxInstanceTask),
+            GoalType::SelectKubeContext => Box::new(SelectKubeContextTask),
+            GoalType::SelectRdsInstance => Box::new(SelectRdsInstanceTask),
+            GoalType::SetLogLevel => Box::new(SetLogLevelTask),
+        }
     }
 }
 

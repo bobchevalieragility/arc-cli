@@ -6,7 +6,7 @@ mod state;
 mod tasks;
 
 // Re-export Args for use in main.rs
-pub use args::Args;
+pub use args::CliArgs;
 
 use std::collections::HashSet;
 use cliclack::{outro, outro_note};
@@ -16,10 +16,10 @@ use std;
 use crate::goals::{Goal, GoalStatus, OutroText};
 use crate::state::State;
 
-pub async fn run(args: &Args) -> Result<(), ArcError> {
+pub async fn run(args: &CliArgs) -> Result<(), ArcError> {
     // A given Args with a single ArcCommand may map to multiple goals
     // (e.g., Switch may require both AWS profile and Kube context selection)
-    let terminal_goals = Args::to_goals(args);
+    let terminal_goals = CliArgs::to_goals(args);
 
     // Execute each goal, including any dependent goals
     execute_goals(terminal_goals).await
@@ -34,7 +34,7 @@ async fn execute_goals(terminal_goals: Vec<Goal>) -> Result<(), ArcError> {
 
     // Process goals until there are none left, peeking and processing before popping
     while let Some(next_goal) = goals.last() {
-        let Goal { task_type, args, is_terminal_goal } = next_goal;
+        let Goal { goal_type: task_type, args, is_terminal_goal } = next_goal;
 
         // Check to see if the goal has already been completed. While unlikely,
         // it's possible if multiple goals depend on the same sub-goal.

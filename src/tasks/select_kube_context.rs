@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use std::{env, fs};
 use std::path::PathBuf;
 use kube::config::Kubeconfig;
-use crate::args::{ArcCommand, Args};
+use crate::args::{CliCommand, CliArgs};
 use crate::aws::eks_cluster::EksCluster;
 use crate::errors::ArcError;
 use crate::goals::{GoalStatus, OutroText};
@@ -20,12 +20,12 @@ impl Task for SelectKubeContextTask {
         Ok(())
     }
 
-    async fn execute(&self, args: &Option<Args>, _state: &State) -> Result<GoalStatus, ArcError> {
+    async fn execute(&self, args: &Option<CliArgs>, _state: &State) -> Result<GoalStatus, ArcError> {
         // Validate that args are present
         let args = args.as_ref()
             .ok_or_else(|| ArcError::invalid_arc_command("Switch", "None"))?;
 
-        if let ArcCommand::Switch{ use_current: true, .. } = &args.command {
+        if let CliCommand::Switch{ use_current: true, .. } = &args.command {
             if let Ok(current_kubeconfig) = env::var("KUBECONFIG") {
                 let kube_path = PathBuf::from(current_kubeconfig);
                 let config = Kubeconfig::read_from(&kube_path)?;

@@ -2,12 +2,11 @@ use async_trait::async_trait;
 use cliclack::{intro, select};
 use clap::ValueEnum;
 use serde_json::Value;
-use crate::args::{ArcCommand, Args};
+use crate::args::{CliCommand, CliArgs};
 use crate::errors::ArcError;
-use crate::goals::{Goal, GoalStatus, OutroText};
+use crate::goals::{Goal, GoalStatus, GoalType, OutroText};
 use crate::state::State;
-use crate::tasks::{Task, TaskResult, TaskType};
-use crate::tasks::TaskType::PortForward;
+use crate::tasks::{Task, TaskResult};
 
 #[derive(Debug)]
 pub struct SetLogLevelTask;
@@ -19,24 +18,24 @@ impl Task for SetLogLevelTask {
         Ok(())
     }
 
-    async fn execute(&self, args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {
+    async fn execute(&self, args: &Option<CliArgs>, state: &State) -> Result<GoalStatus, ArcError> {
         // Validate that args are present
         let args = args.as_ref()
             .ok_or_else(|| ArcError::invalid_arc_command("LogLevel", "None"))?;
 
         // Ensure that SSO token has not expired
-        let sso_goal = Goal::from(TaskType::PerformSso);
+        let sso_goal = GoalType::PerformSso.into();
         if !state.contains(&sso_goal) {
             return Ok(GoalStatus::Needs(sso_goal));
         }
 
         // Extract the optional service name from args
         let service_arg = match &args.command {
-            ArcCommand::LogLevel{ service, .. } => service,
+            CliCommand::LogLevel{ service, .. } => service,
             _ => return Err(ArcError::invalid_arc_command("LogLevel", format!("{:?}", args.command))),
         };
 
-        let svc_selection_goal = Goal::from(TaskType::SelectActuatorService);
+        let svc_selection_goal = GoalType::SelectActuatorService.into();
         if let None = service_arg && !state.contains(&svc_selection_goal) {
             // Since service name not provided in args, we need to wait for service selection goal
             return Ok(GoalStatus::Needs(svc_selection_goal));
@@ -49,8 +48,8 @@ impl Task for SetLogLevelTask {
         };
 
         // If a port-forwarding session doesn't exist, we need to wait for that goal to complete
-        let port_fwd_goal = Goal::new(PortForward, Some(Args {
-            command: ArcCommand::PortForward { service: Some(service), port: None, tear_down: true }
+        let port_fwd_goal = Goal::new(GoalType::PortForward, Some(CliArgs {
+            command: CliCommand::PortForward { service: Some(service), port: None, tear_down: true }
         }));
         if !state.contains(&port_fwd_goal) {
             return Ok(GoalStatus::Needs(port_fwd_goal));
@@ -61,7 +60,7 @@ impl Task for SetLogLevelTask {
 
         // Extract parameters from args
         let (package, display_only) = match &args.command {
-            ArcCommand::LogLevel{ package, display_only, .. } => (package, display_only),
+            CliCommand::LogLevel{ package, display_only, .. } => (package, display_only),
             _ => return Err(ArcError::invalid_arc_command("LogLevel", format!("{:?}", args.command))),
         };
 
@@ -71,8 +70,8 @@ impl Task for SetLogLevelTask {
         } else {
             // We want to change the log level
             let level = match &args.command {
-                ArcCommand::LogLevel{ level: Some(level), .. } => level.clone(),
-                ArcCommand::LogLevel{ level: None, .. } => prompt_for_log_level()?,
+                CliCommand::LogLevel{ level: Some(level), .. } => level.clone(),
+                CliCommand::LogLevel{ level: None, .. } => prompt_for_log_level()?,
                 _ => return Err(ArcError::invalid_arc_command("LogLevel", format!("{:?}", args.command))),
             };
 

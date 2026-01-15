@@ -15,68 +15,19 @@ pub mod set_log_level;
 
 use async_trait::async_trait;
 use cliclack::progress_bar;
-use crate::{Args, GoalStatus, State};
+use crate::{CliArgs, GoalStatus, State};
 use crate::aws::influx::InfluxInstance;
 use crate::aws::rds::RdsInstance;
 use crate::errors::ArcError;
-use crate::tasks::create_tab_completions::CreateTabCompletionsTask;
-use crate::tasks::get_aws_secret::GetAwsSecretTask;
-use crate::tasks::get_vault_secret::GetVaultSecretTask;
-use crate::tasks::launch_influx::LaunchInfluxTask;
-use crate::tasks::perform_sso::PerformSsoTask;
-use crate::tasks::login_to_vault::LoginToVaultTask;
-use crate::tasks::port_forward::{PortForwardInfo, PortForwardTask};
-use crate::tasks::run_pgcli::RunPgcliTask;
-use crate::tasks::select_actuator_service::{ActuatorService, SelectActuatorServiceTask};
-use crate::tasks::select_aws_profile::{AwsProfileInfo, SelectAwsProfileTask};
-use crate::tasks::select_influx_instance::SelectInfluxInstanceTask;
-use crate::tasks::select_kube_context::{KubeContextInfo, SelectKubeContextTask};
-use crate::tasks::select_rds_instance::SelectRdsInstanceTask;
-use crate::tasks::set_log_level::SetLogLevelTask;
+use crate::tasks::port_forward::PortForwardInfo;
+use crate::tasks::select_actuator_service::ActuatorService;
+use crate::tasks::select_aws_profile::AwsProfileInfo;
+use crate::tasks::select_kube_context::KubeContextInfo;
 
 #[async_trait]
 pub trait Task: Send + Sync {
     fn print_intro(&self) -> Result<(), ArcError>;
-    async fn execute(&self, args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError>;
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum TaskType {
-    CreateTabCompletions,
-    GetAwsSecret,
-    GetVaultSecret,
-    LaunchInflux,
-    LoginToVault,
-    PerformSso,
-    PortForward,
-    RunPgcli,
-    SelectActuatorService,
-    SelectAwsProfile,
-    SelectInfluxInstance,
-    SelectKubeContext,
-    SelectRdsInstance,
-    SetLogLevel,
-}
-
-impl TaskType {
-    pub fn to_task(&self) -> Box<dyn Task> {
-        match self {
-            TaskType::CreateTabCompletions => Box::new(CreateTabCompletionsTask),
-            TaskType::GetAwsSecret => Box::new(GetAwsSecretTask),
-            TaskType::GetVaultSecret => Box::new(GetVaultSecretTask),
-            TaskType::LaunchInflux => Box::new(LaunchInfluxTask),
-            TaskType::LoginToVault => Box::new(LoginToVaultTask),
-            TaskType::PerformSso => Box::new(PerformSsoTask),
-            TaskType::PortForward => Box::new(PortForwardTask),
-            TaskType::RunPgcli => Box::new(RunPgcliTask),
-            TaskType::SelectActuatorService => Box::new(SelectActuatorServiceTask),
-            TaskType::SelectAwsProfile => Box::new(SelectAwsProfileTask),
-            TaskType::SelectInfluxInstance => Box::new(SelectInfluxInstanceTask),
-            TaskType::SelectKubeContext => Box::new(SelectKubeContextTask),
-            TaskType::SelectRdsInstance => Box::new(SelectRdsInstanceTask),
-            TaskType::SetLogLevel => Box::new(SetLogLevelTask),
-        }
-    }
+    async fn execute(&self, args: &Option<CliArgs>, state: &State) -> Result<GoalStatus, ArcError>;
 }
 
 #[derive(Debug)]

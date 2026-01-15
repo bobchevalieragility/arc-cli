@@ -8,12 +8,12 @@ use tokio::net::TcpListener;
 use k8s_openapi::api::core::v1::{Pod, Service, ServiceSpec};
 use kube::config::Kubeconfig;
 use tokio::task::AbortHandle;
-use crate::args::{ArcCommand, Args};
+use crate::args::{CliCommand, CliArgs};
 use crate::aws::kube_service::KubeService;
 use crate::errors::ArcError;
-use crate::goals::{Goal, GoalStatus, OutroText};
+use crate::goals::{GoalStatus, GoalType, OutroText};
 use crate::state::State;
-use crate::tasks::{sleep_indicator, Task, TaskResult, TaskType};
+use crate::tasks::{sleep_indicator, Task, TaskResult};
 
 #[derive(Debug)]
 pub struct PortForwardTask;
@@ -25,19 +25,19 @@ impl Task for PortForwardTask {
         Ok(())
     }
 
-    async fn execute(&self, args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {
+    async fn execute(&self, args: &Option<CliArgs>, state: &State) -> Result<GoalStatus, ArcError> {
         // Validate that args are present
         let args = args.as_ref()
             .ok_or_else(|| ArcError::invalid_arc_command("PortForward", "None"))?;
 
         // Ensure that SSO token has not expired
-        let sso_goal = Goal::from(TaskType::PerformSso);
+        let sso_goal = GoalType::PerformSso.into();
         if !state.contains(&sso_goal) {
             return Ok(GoalStatus::Needs(sso_goal));
         }
 
         // If Kube context has not been selected, we need to wait for that goal to complete
-        let context_goal = Goal::from(TaskType::SelectKubeContext);
+        let context_goal = GoalType::SelectKubeContext.into();
         if !state.contains(&context_goal) {
             return Ok(GoalStatus::Needs(context_goal));
         }
@@ -59,10 +59,10 @@ impl Task for PortForwardTask {
 
         // Determine which service to port-forward to, prompting user if necessary
         let service = match &args.command {
-            ArcCommand::PortForward{ service: Some(x), .. } => {
+            CliCommand::PortForward{ service: Some(x), .. } => {
                 KubeService::new(x.clone(), get_service_port(&service_api, x).await?)
             },
-            ArcCommand::PortForward{ service: None, .. } => prompt_for_service(&service_api).await?,
+            CliCommand::PortForward{ service: None, .. } => prompt_for_service(&service_api).await?,
             _ => return Err(ArcError::InvalidArcCommand(
                 "PortForward".to_string(),
                 format!("{:?}", args.command)
@@ -71,8 +71,8 @@ impl Task for PortForwardTask {
 
         // Determine which local port will be used for port-forwarding
         let local_port: u16 = match &args.command {
-            ArcCommand::PortForward{ port: Some(p), .. } => *p,
-            ArcCommand::PortForward{ port: None, .. } => find_available_port().await?,
+            CliCommand::PortForward{ port: Some(p), .. } => *p,
+            CliCommand::PortForward{ port: None, .. } => find_available_port().await?,
             _ => return Err(ArcError::invalid_arc_command(
                 "PortForward",
                 format!("{:?}", args.command)
@@ -100,7 +100,7 @@ impl Task for PortForwardTask {
         sleep_indicator(2, "Establishing port-forward...", &end_msg).await;
 
         // Determine which local port will be used for port-forwarding
-        if let ArcCommand::PortForward{ tear_down: false, .. } = &args.command {
+        if let CliCommand::PortForward{ tear_down: false, .. } = &args.command {
             let prompt = format!("Port-Forwarding to {} service", service.name);
             let msg = format!("Listening on 127.0.0.1:{}\nPress Ctrl+X to terminate", local_port);
             outro_note(style(prompt).green(), msg)?;

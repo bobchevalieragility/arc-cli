@@ -1,6 +1,6 @@
 use clap::Parser;
 use console::style;
-use arc_cli::{Args, run};
+use arc_cli::{CliArgs, run};
 
 #[tokio::main]
 async fn main() {
@@ -9,7 +9,7 @@ async fn main() {
         .install_default()
         .expect("Failed to install default crypto provider");
 
-    let args = Args::try_parse().unwrap_or_else(|e| {
+    let args = CliArgs::try_parse().unwrap_or_else(|e| {
         eprintln!("{}", style(e).red());
         std::process::exit(1);
     });

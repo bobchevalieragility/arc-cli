@@ -2,7 +2,7 @@ use cliclack::{intro, select};
 use async_trait::async_trait;
 use clap::CommandFactory;
 use clap_complete::{generate, Shell};
-use crate::args::Args;
+use crate::args::CliArgs;
 use crate::config_path;
 use crate::errors::ArcError;
 use crate::goals::{GoalStatus, OutroText};
@@ -19,7 +19,7 @@ impl Task for CreateTabCompletionsTask {
         Ok(())
     }
 
-    async fn execute(&self, _args: &Option<Args>, _state: &State) -> Result<GoalStatus, ArcError> {
+    async fn execute(&self, _args: &Option<CliArgs>, _state: &State) -> Result<GoalStatus, ArcError> {
         // Get a list of all available RDS instances for this account
         // let available_rds_instances = profile_info.account.rds_instances();
         let shell = prompt_for_shell()?;
@@ -30,7 +30,7 @@ impl Task for CreateTabCompletionsTask {
         let mut file = std::fs::File::create(&path)?;
 
         // Generate the completion file
-        let mut cmd = Args::command();
+        let mut cmd = CliArgs::command();
         generate(shell, &mut cmd, "arc", &mut file);
 
         let prompt = format!("Tab completions file generated to {}", path.display());

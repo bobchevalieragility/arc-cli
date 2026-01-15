@@ -4,14 +4,14 @@ use std::fs;
 use url::Url;
 use vaultrs::auth::oidc;
 use vaultrs::token;
-use crate::args::Args;
+use crate::args::CliArgs;
 use crate::config_path;
 use crate::aws::vault;
 use crate::aws::vault::VaultInstance;
 use crate::errors::ArcError;
-use crate::goals::{Goal, GoalStatus, OutroText};
+use crate::goals::{GoalStatus, GoalType, OutroText};
 use crate::state::State;
-use crate::tasks::{Task, TaskResult, TaskType};
+use crate::tasks::{Task, TaskResult};
 
 #[derive(Debug)]
 pub struct LoginToVaultTask;
@@ -23,9 +23,9 @@ impl Task for LoginToVaultTask {
         Ok(())
     }
 
-    async fn execute(&self, _args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {
+    async fn execute(&self, _args: &Option<CliArgs>, state: &State) -> Result<GoalStatus, ArcError> {
         // If AWS profile info is not available, we need to wait for that goal to complete
-        let profile_goal = Goal::from(TaskType::SelectAwsProfile);
+        let profile_goal = GoalType::SelectAwsProfile.into();
         if !state.contains(&profile_goal) {
             return Ok(GoalStatus::Needs(profile_goal));
         }

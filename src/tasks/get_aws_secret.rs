@@ -3,11 +3,11 @@ use aws_config::BehaviorVersion;
 use aws_sdk_secretsmanager::Client;
 use aws_types::region::Region;
 use cliclack::{intro, select};
-use crate::args::{ArcCommand, Args};
+use crate::args::{CliCommand, CliArgs};
 use crate::errors::ArcError;
-use crate::goals::{Goal, GoalStatus, OutroText};
+use crate::goals::{GoalStatus, GoalType, OutroText};
 use crate::state::State;
-use crate::tasks::{Task, TaskResult, TaskType};
+use crate::tasks::{Task, TaskResult};
 
 #[derive(Debug)]
 pub struct GetAwsSecretTask;
@@ -19,19 +19,19 @@ impl Task for GetAwsSecretTask {
         Ok(())
     }
 
-    async fn execute(&self, args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {
+    async fn execute(&self, args: &Option<CliArgs>, state: &State) -> Result<GoalStatus, ArcError> {
         // Validate that args are present
         let args = args.as_ref()
             .ok_or_else(|| ArcError::invalid_arc_command("AwsSecret", "None"))?;
 
         // Ensure that SSO token has not expired
-        let sso_goal = Goal::from(TaskType::PerformSso);
+        let sso_goal = GoalType::PerformSso.into();
         if !state.contains(&sso_goal) {
             return Ok(GoalStatus::Needs(sso_goal));
         }
 
         // If AWS profile info is not available, we need to wait for that goal to complete
-        let profile_goal = Goal::from(TaskType::SelectAwsProfile);
+        let profile_goal = GoalType::SelectAwsProfile.into();
         if !state.contains(&profile_goal) {
             return Ok(GoalStatus::Needs(profile_goal));
         }
@@ -49,8 +49,8 @@ impl Task for GetAwsSecretTask {
 
         // Determine which secret to retrieve, prompting user if necessary
         let secret_name = match &args.command {
-            ArcCommand::AwsSecret{ name: Some(x) } => x.clone(),
-            ArcCommand::AwsSecret{ name: None } => prompt_for_aws_secret(&client).await?,
+            CliCommand::AwsSecret{ name: Some(x) } => x.clone(),
+            CliCommand::AwsSecret{ name: None } => prompt_for_aws_secret(&client).await?,
             _ => return Err(ArcError::invalid_arc_command("AwsSecret", format!("{:?}", args.command))),
         };
 

@@ -1,6 +1,6 @@
 use cliclack::{intro, select};
 use async_trait::async_trait;
-use crate::args::Args;
+use crate::args::CliArgs;
 use crate::errors::ArcError;
 use crate::goals::{GoalStatus, OutroText};
 use crate::state::State;
@@ -16,7 +16,7 @@ impl Task for SelectActuatorServiceTask {
         Ok(())
     }
 
-    async fn execute(&self, _args: &Option<Args>, _state: &State) -> Result<GoalStatus, ArcError> {
+    async fn execute(&self, _args: &Option<CliArgs>, _state: &State) -> Result<GoalStatus, ArcError> {
         let services = ActuatorService::all();
 
         // Prompt user to select a service that supports actuator functionality
