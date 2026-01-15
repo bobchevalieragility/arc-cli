@@ -35,7 +35,7 @@ async fn execute_goals(terminal_goals: Vec<Goal>) -> Result<(), ArcError> {
 
     // Process goals until there are none left, peeking and processing before popping
     while let Some(next_goal) = goals.last() {
-        let Goal { goal_type: task_type, args, is_terminal_goal } = next_goal;
+        let Goal { goal_type, args, is_terminal_goal } = next_goal;
 
         // Check to see if the goal has already been completed. While unlikely,
         // it's possible if multiple goals depend on the same sub-goal.
@@ -45,7 +45,7 @@ async fn execute_goals(terminal_goals: Vec<Goal>) -> Result<(), ArcError> {
         }
 
         // Instantiate a task for the current goal
-        let task = task_type.to_task();
+        let task = goal_type.to_task();
 
         // Determine if this is one of the original, user-requested goals
         if *is_terminal_goal && !intros.contains(next_goal) {
