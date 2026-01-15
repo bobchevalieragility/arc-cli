@@ -3,11 +3,10 @@ use cliclack::{intro, select};
 use std::collections::HashMap;
 use vaultrs::client::VaultClient;
 use vaultrs::kv2;
-use crate::args::{CliCommand, CliArgs};
 use crate::tasks::{Task, TaskResult};
 use crate::aws::vault;
 use crate::errors::ArcError;
-use crate::goals::GoalType;
+use crate::goals::{GoalParams, GoalType};
 use crate::{GoalStatus, OutroText};
 use crate::state::State;
 
@@ -21,11 +20,7 @@ impl Task for GetVaultSecretTask {
         Ok(())
     }
 
-    async fn execute(&self, args: &Option<CliArgs>, state: &State) -> Result<GoalStatus, ArcError> {
-        // Validate that args are present
-        let args = args.as_ref()
-            .ok_or_else(|| ArcError::invalid_arc_command("Vault", "None"))?;
-
+    async fn execute(&self, params: &GoalParams, state: &State) -> Result<GoalStatus, ArcError> {
         // If AWS profile info is not available, we need to wait for that goal to complete
         let profile_goal = GoalType::AwsProfileSelected.into();
         if !state.contains(&profile_goal) {
@@ -54,18 +49,18 @@ impl Task for GetVaultSecretTask {
         );
 
         // Determine which secret to retrieve, prompting user if necessary
-        let secret_path = match &args.command {
-            CliCommand::Vault{ path: Some(x), .. } => x.clone(),
-            CliCommand::Vault{ path: None, .. } => prompt_for_secret_path(&client).await?,
-            _ => return Err(ArcError::invalid_arc_command("Vault", format!("{:?}", args.command))),
+        let secret_path = match params {
+            GoalParams::VaultSecretKnown{ path: Some(x), .. } => x.clone(),
+            GoalParams::VaultSecretKnown{ path: None, .. } => prompt_for_secret_path(&client).await?,
+            _ => return Err(ArcError::invalid_goal_params(GoalType::VaultSecretKnown, params)),
         };
 
         // Retrieve the secret key-value pairs from Vault
         let secrets: HashMap<String, String> = kv2::read(&client, "kv-v2", &secret_path).await?;
 
         // Optionally extract a specific field from the secret and format for display
-        let (_, outro_text) = match &args.command {
-            CliCommand::Vault{ field: Some(f), .. } => {
+        let (_, outro_text) = match params {
+            GoalParams::VaultSecretKnown{ field: Some(f), .. } => {
                 // Extract specific field
                 //TODO abstract this logic into a function
                 let secret_field = match secrets.get(f) {
@@ -77,7 +72,7 @@ impl Task for GetVaultSecretTask {
                 let outro_msg = OutroText::multi(f.clone(), secret_field.clone());
                 (secret_field, outro_msg)
             },
-            CliCommand::Vault{ field: None, .. } => {
+            GoalParams::VaultSecretKnown{ field: None, .. } => {
                 // Concatenate k: v pairs into a single, newline-delimited string
                 //TODO abstract this logic into a function
                 let full_secret = secrets.iter()
@@ -88,7 +83,7 @@ impl Task for GetVaultSecretTask {
                 let outro_msg = OutroText::multi(prompt, full_secret.clone());
                 (full_secret, outro_msg)
             },
-            _ => return Err(ArcError::invalid_arc_command("Vault", format!("{:?}", args.command))),
+            _ => return Err(ArcError::invalid_goal_params(GoalType::VaultSecretKnown, params)),
         };
 
         Ok(GoalStatus::Completed(TaskResult::VaultSecret, outro_text))

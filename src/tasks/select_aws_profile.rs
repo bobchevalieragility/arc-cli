@@ -1,10 +1,10 @@
 use cliclack::{intro, select};
 use async_trait::async_trait;
 use std::env;
-use crate::args::{CliCommand, CliArgs};
 use crate::aws::aws_account::AwsAccount;
 use crate::{aws, GoalStatus, OutroText};
 use crate::errors::ArcError;
+use crate::goals::GoalParams;
 use crate::state::State;
 use crate::tasks::{Task, TaskResult};
 
@@ -18,12 +18,8 @@ impl Task for SelectAwsProfileTask {
         Ok(())
     }
 
-    async fn execute(&self, args: &Option<CliArgs>, _state: &State) -> Result<GoalStatus, ArcError> {
-        // Validate that args are present
-        let args = args.as_ref()
-            .ok_or_else(|| ArcError::invalid_arc_command("Switch", "None"))?;
-
-        if let CliCommand::Switch{ use_current: true, .. } = &args.command {
+    async fn execute(&self, params: &GoalParams, _state: &State) -> Result<GoalStatus, ArcError> {
+        if let GoalParams::AwsProfileSelected{ use_current: true } = params {
             // User wants to use current AWS_PROFILE, if it's already set
             if let Ok(current_profile) = env::var("AWS_PROFILE") {
                 let account = get_aws_account(&current_profile).await?;

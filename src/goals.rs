@@ -1,6 +1,5 @@
 use std;
 use std::convert::From;
-use crate::args::{CliCommand, CliArgs};
 use crate::tasks::Task;
 use crate::tasks::create_tab_completions::CreateTabCompletionsTask;
 use crate::tasks::get_aws_secret::GetAwsSecretTask;
@@ -15,46 +14,55 @@ use crate::tasks::select_aws_profile::SelectAwsProfileTask;
 use crate::tasks::select_influx_instance::SelectInfluxInstanceTask;
 use crate::tasks::select_kube_context::SelectKubeContextTask;
 use crate::tasks::select_rds_instance::SelectRdsInstanceTask;
-use crate::tasks::set_log_level::SetLogLevelTask;
+use crate::tasks::set_log_level::{Level, SetLogLevelTask};
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Goal {
-    pub(crate) goal_type: GoalType,
-    pub(crate) args: Option<CliArgs>,
-    pub(crate) is_terminal_goal: bool,
+    pub goal_type: GoalType,
+    pub params: GoalParams,
+    pub is_terminal_goal: bool,
 }
 
 impl Goal {
-    pub fn new(goal_type: GoalType, args: Option<CliArgs>) -> Self {
-        Goal { goal_type, args, is_terminal_goal: false }
+    pub fn new(goal_type: GoalType, params: GoalParams) -> Self {
+        Goal { goal_type, params, is_terminal_goal: false }
     }
-    pub fn new_terminal(goal_type: GoalType, args: Option<CliArgs>) -> Self {
-        Goal { goal_type, args, is_terminal_goal: true }
+    pub fn new_terminal(goal_type: GoalType, params: GoalParams) -> Self {
+        Goal { goal_type, params, is_terminal_goal: true }
     }
 }
 
 impl From<GoalType> for Goal {
-    fn from(task_type: GoalType) -> Self {
-        match task_type {
-            GoalType::VaultTokenValid => Goal::new(GoalType::VaultTokenValid, None),
-            GoalType::SsoTokenValid => Goal::new(GoalType::SsoTokenValid, None),
-            GoalType::ActuatorServiceSelected => Goal::new(GoalType::ActuatorServiceSelected, None),
-            GoalType::AwsProfileSelected => Goal::new(GoalType::AwsProfileSelected, Some(CliArgs {
-                command: CliCommand::Switch {
-                    aws_profile: true,
-                    kube_context: false,
-                    use_current: true,
-                }
-            })),
-            GoalType::InfluxInstanceSelected => Goal::new(GoalType::InfluxInstanceSelected, None),
-            GoalType::KubeContextSelected => Goal::new(GoalType::KubeContextSelected, Some(CliArgs {
-                command: CliCommand::Switch {
-                    aws_profile: false,
-                    kube_context: true,
-                    use_current: true,
-                }
-            })),
-            GoalType::RdsInstanceSelected => Goal::new(GoalType::RdsInstanceSelected, None),
+    fn from(goal_type: GoalType) -> Self {
+        match goal_type {
+            GoalType::ActuatorServiceSelected => Goal::new(
+                GoalType::ActuatorServiceSelected,
+                GoalParams::None
+            ),
+            GoalType::AwsProfileSelected => Goal::new(
+                GoalType::AwsProfileSelected,
+                GoalParams::AwsProfileSelected { use_current: true },
+            ),
+            GoalType::InfluxInstanceSelected => Goal::new(
+                GoalType::InfluxInstanceSelected,
+                GoalParams::None
+            ),
+            GoalType::KubeContextSelected => Goal::new(
+                GoalType::KubeContextSelected,
+                GoalParams::KubeContextSelected { use_current: true},
+            ),
+            GoalType::RdsInstanceSelected => Goal::new(
+                GoalType::RdsInstanceSelected,
+                GoalParams::None
+            ),
+            GoalType::SsoTokenValid => Goal::new(
+                GoalType::SsoTokenValid,
+                GoalParams::None
+            ),
+            GoalType::VaultTokenValid => Goal::new(
+                GoalType::VaultTokenValid,
+                GoalParams::None
+            ),
             _ => panic!("GoalType=>Goal conversion is missing."),
         }
     }
@@ -102,5 +110,46 @@ impl GoalType {
             GoalType::RdsInstanceSelected => Box::new(SelectRdsInstanceTask),
             GoalType::LogLevelSet => Box::new(SetLogLevelTask),
         }
+    }
+}
+
+impl From<GoalType> for String {
+    fn from(goal_type: GoalType) -> Self {
+        format!("{:?}", goal_type)
+    }
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum GoalParams {
+    AwsProfileSelected {
+        use_current: bool,
+    },
+    AwsSecretKnown {
+        name: Option<String>,
+    },
+    KubeContextSelected {
+        use_current: bool,
+    },
+    LogLevelSet {
+        service: Option<String>,
+        package: String,
+        level: Option<Level>,
+        display_only: bool,
+    },
+    None,
+    PortForwardEstablished {
+        service: Option<String>,
+        port: Option<u16>,
+        tear_down: bool,
+    },
+    VaultSecretKnown {
+        path: Option<String>,
+        field: Option<String>,
+    },
+}
+
+impl From<&GoalParams> for String {
+    fn from(params: &GoalParams) -> Self {
+        format!("{:?}", params)
     }
 }

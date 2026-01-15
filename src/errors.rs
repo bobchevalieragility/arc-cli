@@ -42,7 +42,7 @@ pub enum ArcError {
     InsufficientState(String),
 
     #[error("Expected: {0}, actual: {1}")]
-    InvalidArcCommand(String, String),
+    InvalidGoalParams(String, String),
 
     #[error("Secret field missing or not a string: {0}")]
     InvalidSecret(String),
@@ -95,10 +95,9 @@ impl ArcError {
         ArcError::InsufficientState(goal.into())
     }
 
-    pub fn invalid_arc_command(expected: impl Into<String>, actual: impl Into<String>) -> Self {
-        ArcError::InvalidArcCommand(expected.into(), actual.into())
+    pub fn invalid_goal_params(expected: impl Into<String>, actual: impl Into<String>) -> Self {
+        ArcError::InvalidGoalParams(expected.into(), actual.into())
     }
-
     pub fn invalid_secret(field: impl Into<String>) -> Self {
         ArcError::InvalidSecret(field.into())
     }

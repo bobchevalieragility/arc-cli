@@ -14,7 +14,7 @@ async fn main() {
         std::process::exit(1);
     });
 
-    if let Err(e) = run(&args).await {
+    if let Err(e) = run(args).await {
         // Suppress errors from someone hitting Esc during
         // prompts because cliclack already displays a message
         if e.to_string() != "IO error: operation interrupted" {

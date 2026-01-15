@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use std;
 use std::convert::From;
-use crate::goals::GoalType;
+use crate::goals::{GoalParams, GoalType};
 use crate::tasks::set_log_level::Level;
 use crate::goals::Goal;
 
@@ -53,8 +53,8 @@ pub enum CliCommand {
         #[arg(short, long, help = "Local port (defaults to random, unused port)")]
         port: Option<u16>,
 
-        #[arg(short, long, help = "Tear down port-forwarding when command exits")]
-        tear_down: bool,
+        // #[arg(short, long, help = "Tear down port-forwarding when command exits")]
+        // tear_down: bool,
     },
     #[command(about = "Switch AWS profile and/or Kubernetes context")]
     Switch {
@@ -64,51 +64,83 @@ pub enum CliCommand {
         #[arg(short, long, help = "Switch kube context (if false and kube_context is false, will switch both)")]
         kube_context: bool,
 
-        #[arg(short, long, help = "Whether to skip if already set (defaults to false)")]
-        use_current: bool,
+        // #[arg(short, long, help = "Whether to skip if already set (defaults to false)")]
+        // use_current: bool,
     },
     #[command(about = "Generate a shell completion script")]
     Completions,
-    #[command(about = "Temporary command to test SSO")]
-    Sso,
+    // #[command(about = "Temporary command to test SSO")]
+    // Sso,
 }
 
-impl CliArgs {
-    pub(crate) fn to_goals(&self) -> Vec<Goal> {
-        match self.command {
-            CliCommand::AwsSecret { .. } => vec![
-                Goal::new_terminal(GoalType::AwsSecretKnown, Some(self.clone()))
+//TODO can we get rid of the is_terminal_goal flag now that we have these internal params?
+impl CliCommand {
+    pub(crate) fn to_goals(self) -> Vec<Goal> {
+        match self {
+            CliCommand::AwsSecret { name } => vec![
+                Goal::new_terminal(
+                    GoalType::AwsSecretKnown,
+                    GoalParams::AwsSecretKnown{ name }
+                )
             ],
             CliCommand::Completions => vec![
-                Goal::new_terminal(GoalType::TabCompletionsExist, Some(self.clone()))
+                Goal::new_terminal(GoalType::TabCompletionsExist, GoalParams::None)
             ],
-            CliCommand::LogLevel { .. } => vec![
-                Goal::new_terminal(GoalType::LogLevelSet, Some(self.clone()))
+            CliCommand::LogLevel { service, package, level, display_only } => vec![
+                Goal::new_terminal(
+                    GoalType::LogLevelSet,
+                    GoalParams::LogLevelSet{ service, package, level, display_only }
+                )
             ],
             CliCommand::Pgcli => vec![
-                Goal::new_terminal(GoalType::PgcliRunning, Some(self.clone()))
+                Goal::new_terminal(GoalType::PgcliRunning, GoalParams::None)
             ],
-            CliCommand::PortForward { .. } => vec![
-                Goal::new_terminal(GoalType::PortForwardEstablished, Some(self.clone()))
+            CliCommand::PortForward { service, port } => vec![
+                Goal::new_terminal(
+                    GoalType::PortForwardEstablished,
+                    GoalParams::PortForwardEstablished{ service, port, tear_down: false }
+                )
             ],
             CliCommand::Influx => vec![
-                Goal::new_terminal(GoalType::InfluxLaunched, Some(self.clone()))
+                Goal::new_terminal(GoalType::InfluxLaunched, GoalParams::None)
             ],
-            CliCommand::Switch { aws_profile: true, .. } => vec![
-                Goal::new_terminal(GoalType::AwsProfileSelected, Some(self.clone()))
+            CliCommand::Switch { aws_profile: true, kube_context: true } => vec![
+                Goal::new_terminal(
+                    GoalType::AwsProfileSelected,
+                    GoalParams::AwsProfileSelected { use_current: false }
+                ),
+                Goal::new_terminal(
+                    GoalType::KubeContextSelected,
+                    GoalParams::KubeContextSelected { use_current: false }
+                ),
             ],
-            CliCommand::Switch { kube_context: true, .. } => vec![
-                Goal::new_terminal(GoalType::KubeContextSelected, Some(self.clone()))
+            CliCommand::Switch { aws_profile: false, kube_context: false } => vec![
+                Goal::new_terminal(
+                    GoalType::AwsProfileSelected,
+                    GoalParams::AwsProfileSelected { use_current: false }
+                ),
+                Goal::new_terminal(
+                    GoalType::KubeContextSelected,
+                    GoalParams::KubeContextSelected { use_current: false }
+                ),
             ],
-            CliCommand::Switch { aws_profile: false, kube_context: false, .. } => vec![
-                Goal::new_terminal(GoalType::KubeContextSelected, Some(self.clone())),
-                Goal::new_terminal(GoalType::AwsProfileSelected, Some(self.clone()))
+            CliCommand::Switch { aws_profile: true, kube_context: false } => vec![
+                Goal::new_terminal(
+                    GoalType::AwsProfileSelected,
+                    GoalParams::AwsProfileSelected { use_current: false }
+                ),
             ],
-            CliCommand::Vault { .. } => vec![
-                Goal::new_terminal(GoalType::VaultSecretKnown, Some(self.clone()))
+            CliCommand::Switch { aws_profile: false, kube_context: true } => vec![
+                Goal::new_terminal(
+                    GoalType::KubeContextSelected,
+                    GoalParams::KubeContextSelected { use_current: false }
+                ),
             ],
-            CliCommand::Sso => vec![
-                Goal::new_terminal(GoalType::SsoTokenValid, Some(self.clone()))
+            CliCommand::Vault { path, field } => vec![
+                Goal::new_terminal(
+                    GoalType::VaultSecretKnown,
+                    GoalParams::VaultSecretKnown { path, field }
+                ),
             ],
         }
     }

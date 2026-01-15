@@ -3,9 +3,8 @@ use aws_config::BehaviorVersion;
 use aws_sdk_secretsmanager::Client;
 use aws_types::region::Region;
 use cliclack::{intro, select};
-use crate::args::{CliCommand, CliArgs};
 use crate::errors::ArcError;
-use crate::goals::GoalType;
+use crate::goals::{GoalParams, GoalType};
 use crate::{GoalStatus, OutroText};
 use crate::state::State;
 use crate::tasks::{Task, TaskResult};
@@ -20,11 +19,7 @@ impl Task for GetAwsSecretTask {
         Ok(())
     }
 
-    async fn execute(&self, args: &Option<CliArgs>, state: &State) -> Result<GoalStatus, ArcError> {
-        // Validate that args are present
-        let args = args.as_ref()
-            .ok_or_else(|| ArcError::invalid_arc_command("AwsSecret", "None"))?;
-
+    async fn execute(&self, params: &GoalParams, state: &State) -> Result<GoalStatus, ArcError> {
         // Ensure that SSO token has not expired
         let sso_goal = GoalType::SsoTokenValid.into();
         if !state.contains(&sso_goal) {
@@ -49,10 +44,10 @@ impl Task for GetAwsSecretTask {
         let client = Client::new(&aws_config);
 
         // Determine which secret to retrieve, prompting user if necessary
-        let secret_name = match &args.command {
-            CliCommand::AwsSecret{ name: Some(x) } => x.clone(),
-            CliCommand::AwsSecret{ name: None } => prompt_for_aws_secret(&client).await?,
-            _ => return Err(ArcError::invalid_arc_command("AwsSecret", format!("{:?}", args.command))),
+        let secret_name = match params {
+            GoalParams::AwsSecretKnown{ name: Some(x) } => x.clone(),
+            GoalParams::AwsSecretKnown{ name: None } => prompt_for_aws_secret(&client).await?,
+            _ => return Err(ArcError::invalid_goal_params(GoalType::AwsSecretKnown, params)),
         };
 
         // Retrieve the secret value

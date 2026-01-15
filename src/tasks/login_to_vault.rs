@@ -5,11 +5,10 @@ use url::Url;
 use vaultrs::auth::oidc;
 use vaultrs::token;
 use crate::{config_path, GoalStatus, OutroText};
-use crate::args::CliArgs;
 use crate::aws::vault;
 use crate::aws::vault::VaultInstance;
 use crate::errors::ArcError;
-use crate::goals::GoalType;
+use crate::goals::{GoalParams, GoalType};
 use crate::state::State;
 use crate::tasks::{Task, TaskResult};
 
@@ -23,7 +22,7 @@ impl Task for LoginToVaultTask {
         Ok(())
     }
 
-    async fn execute(&self, _args: &Option<CliArgs>, state: &State) -> Result<GoalStatus, ArcError> {
+    async fn execute(&self, _params: &GoalParams, state: &State) -> Result<GoalStatus, ArcError> {
         // If AWS profile info is not available, we need to wait for that goal to complete
         let profile_goal = GoalType::AwsProfileSelected.into();
         if !state.contains(&profile_goal) {

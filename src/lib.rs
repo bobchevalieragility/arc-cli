@@ -17,10 +17,10 @@ use crate::goals::Goal;
 use crate::state::State;
 use crate::tasks::TaskResult;
 
-pub async fn run(args: &CliArgs) -> Result<(), ArcError> {
-    // A given Args with a single ArcCommand may map to multiple goals
+pub async fn run(args: CliArgs) -> Result<(), ArcError> {
+    // A single ArcCommand may map to multiple goals
     // (e.g., Switch may require both AWS profile and Kube context selection)
-    let terminal_goals = CliArgs::to_goals(args);
+    let terminal_goals = args.command.to_goals();
 
     // Execute each goal, including any dependent goals
     execute_goals(terminal_goals).await
@@ -29,13 +29,12 @@ pub async fn run(args: &CliArgs) -> Result<(), ArcError> {
 async fn execute_goals(terminal_goals: Vec<Goal>) -> Result<(), ArcError> {
     let mut goals = terminal_goals.clone();
     let mut eval_string = String::new();
-    // let mut state: HashMap<Goal, TaskResult> = HashMap::new();
     let mut state = State::new();
     let mut intros: HashSet<Goal> = HashSet::new();
 
     // Process goals until there are none left, peeking and processing before popping
     while let Some(next_goal) = goals.last() {
-        let Goal { goal_type, args, is_terminal_goal } = next_goal;
+        let Goal { goal_type, params, is_terminal_goal } = next_goal;
 
         // Check to see if the goal has already been completed. While unlikely,
         // it's possible if multiple goals depend on the same sub-goal.
@@ -54,7 +53,7 @@ async fn execute_goals(terminal_goals: Vec<Goal>) -> Result<(), ArcError> {
         }
 
         // Attempt to complete the next goal on the stack
-        let goal_result = task.execute(args, &state).await;
+        let goal_result = task.execute(params, &state).await;
 
         // If next goal indicates that it needs the result of a dependent goal, then add the
         // dependent goal onto the stack, leaving the original goal to be executed at a later time.

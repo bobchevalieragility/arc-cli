@@ -4,9 +4,9 @@ use sha1::{Sha1, Digest};
 use std::process::Command;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
-use crate::args::CliArgs;
 use crate::{aws, GoalStatus, OutroText};
 use crate::errors::ArcError;
+use crate::goals::GoalParams;
 use crate::state::State;
 use crate::tasks::{Task, TaskResult};
 
@@ -20,7 +20,7 @@ impl Task for PerformSsoTask {
         Ok(())
     }
 
-    async fn execute(&self, _args: &Option<CliArgs>, _state: &State) -> Result<GoalStatus, ArcError> {
+    async fn execute(&self, _params: &GoalParams, _state: &State) -> Result<GoalStatus, ArcError> {
         // Infer the expected SSO cache file path from the AWS config
         let cache_path = get_sso_cache_path().await?;
 

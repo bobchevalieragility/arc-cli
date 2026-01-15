@@ -15,10 +15,11 @@ pub mod set_log_level;
 
 use async_trait::async_trait;
 use cliclack::progress_bar;
-use crate::{CliArgs, GoalStatus, State};
+use crate::{GoalStatus, State};
 use crate::aws::influx::InfluxInstance;
 use crate::aws::rds::RdsInstance;
 use crate::errors::ArcError;
+use crate::goals::GoalParams;
 use crate::tasks::port_forward::PortForwardInfo;
 use crate::tasks::select_actuator_service::ActuatorService;
 use crate::tasks::select_aws_profile::AwsProfileInfo;
@@ -27,7 +28,7 @@ use crate::tasks::select_kube_context::KubeContextInfo;
 #[async_trait]
 pub trait Task: Send + Sync {
     fn print_intro(&self) -> Result<(), ArcError>;
-    async fn execute(&self, args: &Option<CliArgs>, state: &State) -> Result<GoalStatus, ArcError>;
+    async fn execute(&self, params: &GoalParams, state: &State) -> Result<GoalStatus, ArcError>;
 }
 
 #[derive(Debug)]
