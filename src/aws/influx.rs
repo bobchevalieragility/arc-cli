@@ -31,8 +31,8 @@ impl InfluxInstance {
     pub fn url(&self) -> &str {
         match self {
             InfluxInstance::MetricsDev => "https://n6ih7p944s-uc4ycq7jkw3e35.timestream-influxdb.us-west-2.on.aws:8086",
-            InfluxInstance::MetricsStage => "https://cmdvhpm2dy-4vxnbwogyuwmgu.timestream-influxdb.us-west-2.on.aws:8086",
-            InfluxInstance::MetricsProd => "https://sh2akvmz04-pl56nlv6if3nks.timestream-influxdb.us-west-2.on.aws:8086",
+            InfluxInstance::MetricsStage => "https://sh2akvmz04-pl56nlv6if3nks.timestream-influxdb.us-west-2.on.aws:8086",
+            InfluxInstance::MetricsProd => "https://cmdvhpm2dy-4vxnbwogyuwmgu.timestream-influxdb.us-west-2.on.aws:8086",
         }
     }
 }
