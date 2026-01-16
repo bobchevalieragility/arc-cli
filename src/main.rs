@@ -10,7 +10,7 @@ async fn main() {
         .expect("Failed to install default crypto provider");
 
     let args = CliArgs::try_parse().unwrap_or_else(|e| {
-        eprintln!("{}", style(e).red());
+        eprintln!("{e}");
         std::process::exit(1);
     });
 
