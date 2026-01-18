@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/bobchevalieragility/arc-cli/compare/v0.1.4...v0.2.0)
+
+### 🐛 Bug Fixes
+
+
+- Fixed Influx URLs for prod and stage - ([94c15b0](https://github.com/bobchevalieragility/arc-cli/commit/94c15b0cd3d5dcc9881df00d5d25affcb3863132))
+
+### 🚜 Refactor
+
+
+- Add Goal constructors - ([1806cac](https://github.com/bobchevalieragility/arc-cli/commit/1806cac5c30f71b5f01e28103c01e7730f4aabfd))
+- Add internal GoalParams - ([457b62f](https://github.com/bobchevalieragility/arc-cli/commit/457b62f7fbdcfa51f138fb0fa16786cc5bb8a545))
+- Rename TaskType=>GoalType, and Args=>CliArgs - ([20018f1](https://github.com/bobchevalieragility/arc-cli/commit/20018f12c632c5760e671fb4a6885bcc1814946c))
+- Split out args, goals, and state - ([cc43649](https://github.com/bobchevalieragility/arc-cli/commit/cc43649aea32049847ce047c29123c4c2d30cd32))
+
+### ⚙️ Miscellaneous Tasks
+
+
+- Add additional actuator services - ([3a47fed](https://github.com/bobchevalieragility/arc-cli/commit/3a47fed7fb8bbbd132b97e3a3e116241be6d6168))
+
+
 ## [0.1.4](https://github.com/bobchevalieragility/arc-cli/compare/v0.1.3...v0.1.4)
 
 ### ⛰️ Features
