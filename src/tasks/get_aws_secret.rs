@@ -74,7 +74,7 @@ async fn prompt_for_aws_secret(client: &Client) -> Result<String, ArcError> {
         menu = menu.item(secret, secret, "");
     }
 
-    Ok(menu.interact().unwrap().to_string())
+    Ok(menu.interact()?.to_string())
 }
 
 async fn get_available_secrets(client: &Client) -> Result<Vec<String>, ArcError> {

@@ -35,19 +35,21 @@ impl Task for SelectInfluxInstanceTask {
                 let key = "Inferred Influx instance".to_string();
                 (instance, OutroText::single(key, instance.name().to_string()))
             },
-            _ => (prompt_for_influx_instance(available_influx_instances).await, OutroText::None)
+            _ => (prompt_for_influx_instance(available_influx_instances).await?, OutroText::None)
         };
 
         Ok(GoalStatus::Completed(TaskResult::InfluxInstance(influx_instance), outro_text))
     }
 }
 
-async fn prompt_for_influx_instance(available_influx_instances: Vec<InfluxInstance>) -> InfluxInstance {
+async fn prompt_for_influx_instance(
+    available_influx_instances: Vec<InfluxInstance>
+) -> Result<InfluxInstance, ArcError> {
     let mut menu = select("Select InfluxDB instance");
     for influx in &available_influx_instances {
         menu = menu.item(influx.name(), influx.name(), "");
     }
 
-    let influx_name = menu.interact().unwrap().to_string();
-    InfluxInstance::from(influx_name.as_str())
+    let influx_name = menu.interact()?.to_string();
+    Ok(InfluxInstance::from(influx_name.as_str()))
 }
