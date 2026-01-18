@@ -1,9 +1,11 @@
 use cliclack::{intro, select};
 use async_trait::async_trait;
-use crate::{Args, Goal, GoalStatus, OutroText, State};
 use crate::aws::rds::RdsInstance;
 use crate::errors::ArcError;
-use crate::tasks::{Task, TaskResult, TaskType};
+use crate::goals::{Goal, GoalParams};
+use crate::{GoalStatus, OutroText};
+use crate::state::State;
+use crate::tasks::{Task, TaskResult};
 
 #[derive(Debug)]
 pub struct SelectRdsInstanceTask;
@@ -15,9 +17,9 @@ impl Task for SelectRdsInstanceTask {
         Ok(())
     }
 
-    async fn execute(&self, _args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {
+    async fn execute(&self, _params: &GoalParams, state: &State) -> Result<GoalStatus, ArcError> {
         // If AWS profile info is not available, we need to wait for that goal to complete
-        let profile_goal = Goal::from(TaskType::SelectAwsProfile);
+        let profile_goal = Goal::aws_profile_selected();
         if !state.contains(&profile_goal) {
             return Ok(GoalStatus::Needs(profile_goal));
         }

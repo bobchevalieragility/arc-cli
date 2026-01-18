@@ -3,9 +3,11 @@ use aws_config::BehaviorVersion;
 use aws_sdk_secretsmanager::Client;
 use aws_types::region::Region;
 use cliclack::{intro, select};
-use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText, State};
 use crate::errors::ArcError;
-use crate::tasks::{Task, TaskResult, TaskType};
+use crate::goals::{Goal, GoalParams, GoalType};
+use crate::{GoalStatus, OutroText};
+use crate::state::State;
+use crate::tasks::{Task, TaskResult};
 
 #[derive(Debug)]
 pub struct GetAwsSecretTask;
@@ -17,19 +19,15 @@ impl Task for GetAwsSecretTask {
         Ok(())
     }
 
-    async fn execute(&self, args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {
-        // Validate that args are present
-        let args = args.as_ref()
-            .ok_or_else(|| ArcError::invalid_arc_command("AwsSecret", "None"))?;
-
+    async fn execute(&self, params: &GoalParams, state: &State) -> Result<GoalStatus, ArcError> {
         // Ensure that SSO token has not expired
-        let sso_goal = Goal::from(TaskType::PerformSso);
+        let sso_goal = Goal::sso_token_valid();
         if !state.contains(&sso_goal) {
             return Ok(GoalStatus::Needs(sso_goal));
         }
 
         // If AWS profile info is not available, we need to wait for that goal to complete
-        let profile_goal = Goal::from(TaskType::SelectAwsProfile);
+        let profile_goal = Goal::aws_profile_selected();
         if !state.contains(&profile_goal) {
             return Ok(GoalStatus::Needs(profile_goal));
         }
@@ -46,10 +44,10 @@ impl Task for GetAwsSecretTask {
         let client = Client::new(&aws_config);
 
         // Determine which secret to retrieve, prompting user if necessary
-        let secret_name = match &args.command {
-            ArcCommand::AwsSecret{ name: Some(x) } => x.clone(),
-            ArcCommand::AwsSecret{ name: None } => prompt_for_aws_secret(&client).await?,
-            _ => return Err(ArcError::invalid_arc_command("AwsSecret", format!("{:?}", args.command))),
+        let secret_name = match params {
+            GoalParams::AwsSecretKnown{ name: Some(x) } => x.clone(),
+            GoalParams::AwsSecretKnown{ name: None } => prompt_for_aws_secret(&client).await?,
+            _ => return Err(ArcError::invalid_goal_params(GoalType::AwsSecretKnown, params)),
         };
 
         // Retrieve the secret value

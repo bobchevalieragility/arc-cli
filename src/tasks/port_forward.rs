@@ -8,10 +8,12 @@ use tokio::net::TcpListener;
 use k8s_openapi::api::core::v1::{Pod, Service, ServiceSpec};
 use kube::config::Kubeconfig;
 use tokio::task::AbortHandle;
-use crate::{ArcCommand, Args, Goal, GoalStatus, OutroText, State};
 use crate::aws::kube_service::KubeService;
 use crate::errors::ArcError;
-use crate::tasks::{sleep_indicator, Task, TaskResult, TaskType};
+use crate::goals::{Goal, GoalParams, GoalType};
+use crate::{GoalStatus, OutroText};
+use crate::state::State;
+use crate::tasks::{sleep_indicator, Task, TaskResult};
 
 #[derive(Debug)]
 pub struct PortForwardTask;
@@ -23,19 +25,15 @@ impl Task for PortForwardTask {
         Ok(())
     }
 
-    async fn execute(&self, args: &Option<Args>, state: &State) -> Result<GoalStatus, ArcError> {
-        // Validate that args are present
-        let args = args.as_ref()
-            .ok_or_else(|| ArcError::invalid_arc_command("PortForward", "None"))?;
-
+    async fn execute(&self, params: &GoalParams, state: &State) -> Result<GoalStatus, ArcError> {
         // Ensure that SSO token has not expired
-        let sso_goal = Goal::from(TaskType::PerformSso);
+        let sso_goal = Goal::sso_token_valid();
         if !state.contains(&sso_goal) {
             return Ok(GoalStatus::Needs(sso_goal));
         }
 
         // If Kube context has not been selected, we need to wait for that goal to complete
-        let context_goal = Goal::from(TaskType::SelectKubeContext);
+        let context_goal = Goal::kube_context_selected();
         if !state.contains(&context_goal) {
             return Ok(GoalStatus::Needs(context_goal));
         }
@@ -56,25 +54,19 @@ impl Task for PortForwardTask {
         let service_api: Api<Service> = Api::namespaced(client.clone(), &cluster.namespace());
 
         // Determine which service to port-forward to, prompting user if necessary
-        let service = match &args.command {
-            ArcCommand::PortForward{ service: Some(x), .. } => {
+        let service = match params {
+            GoalParams::PortForwardEstablished{ service: Some(x), .. } => {
                 KubeService::new(x.clone(), get_service_port(&service_api, x).await?)
             },
-            ArcCommand::PortForward{ service: None, .. } => prompt_for_service(&service_api).await?,
-            _ => return Err(ArcError::InvalidArcCommand(
-                "PortForward".to_string(),
-                format!("{:?}", args.command)
-            )),
+            GoalParams::PortForwardEstablished{ service: None, .. } => prompt_for_service(&service_api).await?,
+            _ => return Err(ArcError::invalid_goal_params(GoalType::PortForwardEstablished, params)),
         };
 
         // Determine which local port will be used for port-forwarding
-        let local_port: u16 = match &args.command {
-            ArcCommand::PortForward{ port: Some(p), .. } => *p,
-            ArcCommand::PortForward{ port: None, .. } => find_available_port().await?,
-            _ => return Err(ArcError::invalid_arc_command(
-                "PortForward",
-                format!("{:?}", args.command)
-            )),
+        let local_port: u16 = match params {
+            GoalParams::PortForwardEstablished{ port: Some(p), .. } => *p,
+            GoalParams::PortForwardEstablished{ port: None, .. } => find_available_port().await?,
+            _ => return Err(ArcError::invalid_goal_params(GoalType::PortForwardEstablished, params)),
         };
 
         // Find one of the given service's pods
@@ -97,8 +89,8 @@ impl Task for PortForwardTask {
         );
         sleep_indicator(2, "Establishing port-forward...", &end_msg).await;
 
-        // Determine which local port will be used for port-forwarding
-        if let ArcCommand::PortForward{ tear_down: false, .. } = &args.command {
+        if let GoalParams::PortForwardEstablished{ tear_down: false, .. } = params {
+            // Keep the port-forward open until user manually terminates
             let prompt = format!("Port-Forwarding to {} service", service.name);
             let msg = format!("Listening on 127.0.0.1:{}\nPress Ctrl+X to terminate", local_port);
             outro_note(style(prompt).green(), msg)?;

@@ -1,6 +1,6 @@
 use clap::Parser;
 use console::style;
-use arc_cli::{run, Args};
+use arc_cli::{CliArgs, run};
 
 #[tokio::main]
 async fn main() {
@@ -9,12 +9,12 @@ async fn main() {
         .install_default()
         .expect("Failed to install default crypto provider");
 
-    let args = Args::try_parse().unwrap_or_else(|e| {
-        eprintln!("{}", style(e).red());
+    let args = CliArgs::try_parse().unwrap_or_else(|e| {
+        eprintln!("{e}");
         std::process::exit(1);
     });
 
-    if let Err(e) = run(&args).await {
+    if let Err(e) = run(args).await {
         // Suppress errors from someone hitting Esc during
         // prompts because cliclack already displays a message
         if e.to_string() != "IO error: operation interrupted" {
