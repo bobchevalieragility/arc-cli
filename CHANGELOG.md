@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.1.3](https://github.com/bobchevalieragility/arc-cli/compare/v0.1.2...v0.1.3)
+
+### ⛰️ Features
+
+
+- Add AWS SSO task - ([e43e154](https://github.com/bobchevalieragility/arc-cli/commit/e43e1541d79eadc96264fd53e8ad185792888839))
+
+
 ## [0.1.2](https://github.com/bobchevalieragility/arc-cli/compare/v0.1.1...v0.1.2)
 
 ### ⛰️ Features
