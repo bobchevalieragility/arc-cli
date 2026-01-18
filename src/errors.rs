@@ -17,8 +17,17 @@ pub enum ArcError {
     #[error("AWS SDK error: {0}")]
     AwsListSecretError(#[from] SdkError<ListSecretsError, HttpResponse>),
 
-    #[error("Aws Profile Error: {0}")]
+    #[error("AWS Profile Error: {0}")]
     AwsProfileError(String),
+
+    #[error("AWS SSO: {0}")]
+    AwsSsoError(String),
+
+    #[error("SSO session expired, please run 'aws sso login'")]
+    AwsSsoExpired,
+
+    #[error("Chrono parse error: {0}")]
+    ChronoParseError(#[from] chrono::ParseError),
 
     #[error("Error: {0}")]
     Error(#[from] Box<dyn std::error::Error + Send + Sync>),

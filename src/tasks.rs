@@ -2,6 +2,7 @@ pub mod create_tab_completions;
 pub mod get_aws_secret;
 pub mod get_vault_secret;
 pub mod launch_influx;
+pub mod perform_sso;
 pub mod login_to_vault;
 pub mod port_forward;
 pub mod run_pgcli;
@@ -22,6 +23,7 @@ use crate::tasks::create_tab_completions::CreateTabCompletionsTask;
 use crate::tasks::get_aws_secret::GetAwsSecretTask;
 use crate::tasks::get_vault_secret::GetVaultSecretTask;
 use crate::tasks::launch_influx::LaunchInfluxTask;
+use crate::tasks::perform_sso::PerformSsoTask;
 use crate::tasks::login_to_vault::LoginToVaultTask;
 use crate::tasks::port_forward::{PortForwardInfo, PortForwardTask};
 use crate::tasks::run_pgcli::RunPgcliTask;
@@ -45,6 +47,7 @@ pub enum TaskType {
     GetVaultSecret,
     LaunchInflux,
     LoginToVault,
+    PerformSso,
     PortForward,
     RunPgcli,
     SelectActuatorService,
@@ -63,6 +66,7 @@ impl TaskType {
             TaskType::GetVaultSecret => Box::new(GetVaultSecretTask),
             TaskType::LaunchInflux => Box::new(LaunchInfluxTask),
             TaskType::LoginToVault => Box::new(LoginToVaultTask),
+            TaskType::PerformSso => Box::new(PerformSsoTask),
             TaskType::PortForward => Box::new(PortForwardTask),
             TaskType::RunPgcli => Box::new(RunPgcliTask),
             TaskType::SelectActuatorService => Box::new(SelectActuatorServiceTask),
@@ -87,6 +91,7 @@ pub enum TaskResult {
     PgcliCommand(String),
     PortForward(PortForwardInfo),
     RdsInstance(RdsInstance),
+    SsoSessionValid,
     TabCompletionsCreated,
     VaultSecret,
     VaultToken(String),

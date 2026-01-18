@@ -84,6 +84,8 @@ enum ArcCommand {
     },
     #[command(about = "Generate a shell completion script")]
     Completions,
+    #[command(about = "Temporary command to test SSO")]
+    Sso,
 }
 
 impl Args {
@@ -120,6 +122,9 @@ impl Args {
             ArcCommand::Vault { .. } => vec![
                 Goal::new_terminal(TaskType::GetVaultSecret, Some(self.clone()))
             ],
+            ArcCommand::Sso => vec![
+                Goal::new_terminal(TaskType::PerformSso, Some(self.clone()))
+            ],
         }
     }
 }
@@ -145,6 +150,7 @@ impl From<TaskType> for Goal {
     fn from(task_type: TaskType) -> Self {
         match task_type {
             TaskType::LoginToVault => Goal::new(TaskType::LoginToVault, None),
+            TaskType::PerformSso => Goal::new(TaskType::PerformSso, None),
             TaskType::SelectActuatorService => Goal::new(TaskType::SelectActuatorService, None),
             TaskType::SelectAwsProfile => Goal::new(TaskType::SelectAwsProfile, Some(Args {
                 command: ArcCommand::Switch {
@@ -305,8 +311,8 @@ impl State {
     pub(crate) fn get_aws_secret(&self, goal: &Goal) -> Result<Value, ArcError> {
         match self.get(goal)? {
             TaskResult::AwsSecret(x) => {
-                let secret_json: serde_json::error::Result<Value> = serde_json::from_str(x);
-                Ok(secret_json?)
+                let secret_json: Value = serde_json::from_str(x)?;
+                Ok(secret_json)
             },
             result => Err(ArcError::invalid_state(goal, "AwsSecret", result)),
         }
