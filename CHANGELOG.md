@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.1.4](https://github.com/bobchevalieragility/arc-cli/compare/v0.1.3...v0.1.4)
+
+### ⛰️ Features
+
+
+- Gracefully handle Esc key - ([aa60321](https://github.com/bobchevalieragility/arc-cli/commit/aa603216224d544c8233c4ee6531c9af27664f98))
+
+### 🚜 Refactor
+
+
+- Cleanup workflow script - ([dd47597](https://github.com/bobchevalieragility/arc-cli/commit/dd47597f738bb565870baba3d8b7ae4162f28e13))
+
+
 ## [0.1.3](https://github.com/bobchevalieragility/arc-cli/compare/v0.1.2...v0.1.3)
 
 ### ⛰️ Features
