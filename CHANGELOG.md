@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.1.2](https://github.com/bobchevalieragility/arc-cli/compare/v0.1.1...v0.1.2)
+
+### ⛰️ Features
+
+
+- Add tab completions - ([052dcf7](https://github.com/bobchevalieragility/arc-cli/commit/052dcf79f42364ce5100f098d323793c454571de))
+
+
 ## [0.1.1](https://github.com/bobchevalieragility/arc-cli/compare/v0.1.0...v0.1.1)
 
 ### ⛰️ Features
