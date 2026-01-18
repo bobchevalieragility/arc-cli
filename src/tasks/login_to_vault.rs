@@ -5,7 +5,7 @@ use url::Url;
 use vaultrs::auth::oidc;
 use vaultrs::token;
 
-use crate::{Args, Goal, GoalStatus, OutroText, State};
+use crate::{config_path, Args, Goal, GoalStatus, OutroText, State};
 use crate::aws::vault;
 use crate::aws::vault::VaultInstance;
 use crate::errors::ArcError;
@@ -60,28 +60,27 @@ impl Task for LoginToVaultTask {
     }
 }
 
-fn vault_token_path() -> Option<std::path::PathBuf> {
-    //TODO .arc-cli path should be configurable
-    let mut path = home::home_dir()?;
-    path.push(".arc-cli");
+fn vault_token_path() -> Result<std::path::PathBuf, ArcError> {
+    let mut path = config_path()?;
     path.push("vault_token");
-    Some(path)
+    Ok(path)
 }
 
 fn read_token_file() -> Option<String> {
-    let token_path = vault_token_path()?;
-    match fs::read_to_string(token_path) {
-        Ok(token) => Some(token.trim().to_string()),
-        Err(_) => None,
+    let token_path = vault_token_path();
+    match token_path {
+        Ok(path) => {
+            match fs::read_to_string(path) {
+                Ok(token) => Some(token.trim().to_string()),
+                Err(_) => None,
+            }
+        },
+        Err(_) => return None,
     }
 }
 
 fn save_token_file(token: &str) -> Result<(), ArcError> {
-    let mut token_path = vault_token_path().ok_or_else(|| ArcError::HomeDirError)?;
-    token_path.pop(); // Remove "vault_token" to get the directory
-    fs::create_dir_all(&token_path)?;
-    token_path.push("vault_token");
-
+    let token_path = vault_token_path()?;
     fs::write(token_path, token)?;
     Ok(())
 }
