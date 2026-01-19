@@ -9,7 +9,7 @@ use crate::tasks::launch_influx::LaunchInfluxTask;
 use crate::tasks::login_to_vault::LoginToVaultTask;
 use crate::tasks::perform_sso::PerformSsoTask;
 use crate::tasks::port_forward::PortForwardTask;
-use crate::tasks::query_influx::QueryInfluxTask;
+use crate::tasks::influx_dump::InfluxDumpTask;
 use crate::tasks::run_pgcli::RunPgcliTask;
 use crate::tasks::select_actuator_service::SelectActuatorServiceTask;
 use crate::tasks::select_aws_profile::SelectAwsProfileTask;
@@ -67,14 +67,14 @@ impl Goal {
         Goal::new_terminal(GoalType::InfluxLaunched, GoalParams::None)
     }
 
-    pub fn terminal_influx_queried(
+    pub fn terminal_influx_dump_completed(
         day: Option<NaiveDate>,
         start: Option<DateTime<Utc>>,
         end: Option<DateTime<Utc>>,
         output: std::path::PathBuf
     ) -> Self {
-        let params = GoalParams::InfluxQueried { day, start, end, output };
-        Goal::new_terminal(GoalType::InfluxQueried, params)
+        let params = GoalParams::InfluxDumpCompleted { day, start, end, output };
+        Goal::new_terminal(GoalType::InfluxDumpCompleted, params)
     }
 
     pub fn kube_context_selected() -> Self {
@@ -162,7 +162,7 @@ pub enum GoalType {
     AwsSecretKnown,
     InfluxInstanceSelected,
     InfluxLaunched,
-    InfluxQueried,
+    InfluxDumpCompleted,
     KubeContextSelected,
     LogLevelSet,
     OrganizationSelected,
@@ -183,7 +183,7 @@ impl GoalType {
             GoalType::AwsSecretKnown => Box::new(GetAwsSecretTask),
             GoalType::InfluxInstanceSelected => Box::new(SelectInfluxInstanceTask),
             GoalType::InfluxLaunched => Box::new(LaunchInfluxTask),
-            GoalType::InfluxQueried => Box::new(QueryInfluxTask),
+            GoalType::InfluxDumpCompleted => Box::new(InfluxDumpTask),
             GoalType::KubeContextSelected => Box::new(SelectKubeContextTask),
             GoalType::LogLevelSet => Box::new(SetLogLevelTask),
             GoalType::OrganizationSelected => Box::new(SelectOrganizationTask),
@@ -212,7 +212,7 @@ pub enum GoalParams {
     AwsSecretKnown {
         name: Option<String>,
     },
-    InfluxQueried {
+    InfluxDumpCompleted {
         day: Option<NaiveDate>,
         start: Option<DateTime<Utc>>,
         end: Option<DateTime<Utc>>,

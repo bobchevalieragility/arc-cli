@@ -45,9 +45,9 @@ pub enum CliCommand {
     #[command(about = "Launch pgcli to interact with a Postgres RDS instance")]
     Pgcli,
     #[command(about = "Launch the InfluxDB UI")]
-    Influx,
-    #[command(about = "Query InfluxDB and save results to a CSV file")]
-    InfluxQuery {
+    InfluxUi,
+    #[command(about = "Query InfluxDB and dump results to a CSV file")]
+    InfluxDump {
         #[arg(short, long, help = "Query for all records on this day (e.g., '2026-01-19')", conflicts_with = "start")]
         day: Option<NaiveDate>,
 
@@ -94,9 +94,9 @@ impl CliCommand {
             CliCommand::PortForward { service, port } => vec![
                 Goal::terminal_port_forward_established(service, port)
             ],
-            CliCommand::Influx => vec![Goal::terminal_influx_launched()],
-            CliCommand::InfluxQuery { day, start, end, output } => vec![
-                Goal::terminal_influx_queried(day, start, end, output)
+            CliCommand::InfluxUi => vec![Goal::terminal_influx_launched()],
+            CliCommand::InfluxDump { day, start, end, output } => vec![
+                Goal::terminal_influx_dump_completed(day, start, end, output)
             ],
             CliCommand::Switch { aws_profile: true, kube_context: true } => vec![
                 Goal::terminal_aws_profile_selected(),

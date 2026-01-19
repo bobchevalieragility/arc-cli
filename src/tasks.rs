@@ -5,7 +5,7 @@ pub mod launch_influx;
 pub mod perform_sso;
 pub mod login_to_vault;
 pub mod port_forward;
-pub mod query_influx;
+pub mod influx_dump;
 pub mod run_pgcli;
 pub mod select_actuator_service;
 pub mod select_aws_profile;
@@ -41,7 +41,7 @@ pub enum TaskResult {
     AwsSecret(String),
     InfluxCommand,
     InfluxInstance(InfluxInstance),
-    InfluxQueryCompleted,
+    InfluxDumpCompleted,
     KubeContext{ context: KubeContextInfo, updated: bool },
     LogLevel,
     Organization(Organization),

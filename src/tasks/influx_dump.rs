@@ -13,17 +13,16 @@ const FILTERED_COLS: [&str; 2] = ["result", "table"];
 const ORDERED_COLS: [&str; 4] = ["_time", "event_type", "_field", "_value"];
 
 #[derive(Debug)]
-pub struct QueryInfluxTask;
+pub struct InfluxDumpTask;
 
 #[async_trait]
-impl Task for QueryInfluxTask {
+impl Task for InfluxDumpTask {
     fn print_intro(&self) -> Result<(), ArcError> {
-        intro("Query InfluxDB")?;
+        intro("InfluxDB Dump")?;
         Ok(())
     }
 
     async fn execute(&self, params: &GoalParams, state: &State) -> Result<GoalStatus, ArcError> {
-        //TODO filter by org
         // Ensure that SSO token has not expired
         let sso_goal = Goal::sso_token_valid();
         if !state.contains(&sso_goal) {
@@ -60,8 +59,8 @@ impl Task for QueryInfluxTask {
 
         // Extract parameters
         let (day, start, end, output) = match params {
-            GoalParams::InfluxQueried { day, start, end, output } => (day, start, end, output),
-            _ => return Err(ArcError::invalid_goal_params(GoalType::InfluxQueried, params)),
+            GoalParams::InfluxDumpCompleted { day, start, end, output } => (day, start, end, output),
+            _ => return Err(ArcError::invalid_goal_params(GoalType::InfluxDumpCompleted, params)),
         };
 
         // Infer the start of the time range
@@ -71,7 +70,7 @@ impl Task for QueryInfluxTask {
             use chrono::NaiveTime;
             day_str.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap()).and_utc()
         } else {
-            return Err(ArcError::invalid_goal_params(GoalType::InfluxQueried, "Missing 'day' or 'start'"));
+            return Err(ArcError::invalid_goal_params(GoalType::InfluxDumpCompleted, "Missing 'day' or 'start'"));
         };
         let range_begin = range_begin.format("%Y-%m-%dT%H:%M:%SZ");
 
@@ -127,7 +126,7 @@ impl Task for QueryInfluxTask {
         );
         let outro_text = OutroText::multi("Influx Query Results".to_string(), msg);
 
-        Ok(GoalStatus::Completed(TaskResult::InfluxQueryCompleted, outro_text))
+        Ok(GoalStatus::Completed(TaskResult::InfluxDumpCompleted, outro_text))
     }
 }
 
