@@ -2,6 +2,7 @@ mod args;
 mod aws;
 mod errors;
 mod goals;
+mod organization;
 mod state;
 mod tasks;
 

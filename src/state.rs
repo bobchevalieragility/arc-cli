@@ -10,6 +10,7 @@ use crate::tasks::select_aws_profile::AwsProfileInfo;
 use crate::tasks::select_kube_context::KubeContextInfo;
 use std;
 use crate::goals::Goal;
+use crate::organization::Organization;
 
 pub struct State {
     results: HashMap<Goal, TaskResult>,
@@ -67,6 +68,13 @@ impl State {
         match self.get(goal)? {
             TaskResult::KubeContext { context, .. } => Ok(context),
             result => Err(ArcError::invalid_state(goal, "KubeContext", result)),
+        }
+    }
+
+    pub(crate) fn get_organization(&self, goal: &Goal) -> Result<&Organization, ArcError> {
+        match self.get(goal)? {
+            TaskResult::Organization(x) => Ok(x),
+            result => Err(ArcError::invalid_state(goal, "Organization", result)),
         }
     }
 

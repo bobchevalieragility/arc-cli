@@ -49,6 +49,15 @@ impl Task for QueryInfluxTask {
         // Retrieve secret token from state
         let token = state.get_vault_secret(&secret_goal)?;
 
+        // If an org has not yet been selected, we need to wait for that goal to complete
+        let org_selection_goal = Goal::organization_selected();
+        if !state.contains(&org_selection_goal) {
+            return Ok(GoalStatus::Needs(org_selection_goal));
+        }
+
+        // Retrieve organization from state
+        let organization = state.get_organization(&org_selection_goal)?;
+
         // Extract parameters
         let (day, start, end, output) = match params {
             GoalParams::InfluxQueried { day, start, end, output } => (day, start, end, output),
@@ -73,8 +82,13 @@ impl Task for QueryInfluxTask {
         // Build Flux query to get all data in the time range
         let dropped_cols = format!(r#"["{}"]"#, DROPPED_COLS.join(r#"", ""#));
         let flux_query = format!(
-            r#"from(bucket: "metrics") |> range(start: {}, stop: {}) |> group() |> sort(columns: ["_time"]) |> drop(columns: {})"#,
-            range_begin, range_end, dropped_cols
+            r#"from(bucket: "metrics")
+              |> range(start: {}, stop: {})
+              |> filter(fn: (r) => r["org_id"] == "{}")
+              |> group()
+              |> sort(columns: ["_time"])
+              |> drop(columns: {})"#,
+            range_begin, range_end, organization.id(), dropped_cols
         );
 
         // Execute the query

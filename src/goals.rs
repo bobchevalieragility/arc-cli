@@ -15,6 +15,7 @@ use crate::tasks::select_actuator_service::SelectActuatorServiceTask;
 use crate::tasks::select_aws_profile::SelectAwsProfileTask;
 use crate::tasks::select_influx_instance::SelectInfluxInstanceTask;
 use crate::tasks::select_kube_context::SelectKubeContextTask;
+use crate::tasks::select_organization::SelectOrganizationTask;
 use crate::tasks::select_rds_instance::SelectRdsInstanceTask;
 use crate::tasks::set_log_level::{Level, SetLogLevelTask};
 
@@ -96,6 +97,10 @@ impl Goal {
         Goal::new_terminal(GoalType::LogLevelSet, params)
     }
 
+    pub fn organization_selected() -> Self {
+        Goal::new(GoalType::OrganizationSelected, GoalParams::None)
+    }
+
     pub fn terminal_pgcli_running() -> Self {
         Goal::new_terminal(GoalType::PgcliRunning, GoalParams::None)
     }
@@ -160,6 +165,7 @@ pub enum GoalType {
     InfluxQueried,
     KubeContextSelected,
     LogLevelSet,
+    OrganizationSelected,
     PgcliRunning,
     PortForwardEstablished,
     RdsInstanceSelected,
@@ -172,21 +178,22 @@ pub enum GoalType {
 impl GoalType {
     pub fn to_task(&self) -> Box<dyn Task> {
         match self {
-            GoalType::TabCompletionsExist => Box::new(CreateTabCompletionsTask),
-            GoalType::AwsSecretKnown => Box::new(GetAwsSecretTask),
-            GoalType::VaultSecretKnown => Box::new(GetVaultSecretTask),
-            GoalType::InfluxLaunched => Box::new(LaunchInfluxTask),
-            GoalType::InfluxQueried => Box::new(QueryInfluxTask),
-            GoalType::VaultTokenValid => Box::new(LoginToVaultTask),
-            GoalType::SsoTokenValid => Box::new(PerformSsoTask),
-            GoalType::PortForwardEstablished => Box::new(PortForwardTask),
-            GoalType::PgcliRunning => Box::new(RunPgcliTask),
             GoalType::ActuatorServiceSelected => Box::new(SelectActuatorServiceTask),
             GoalType::AwsProfileSelected => Box::new(SelectAwsProfileTask),
+            GoalType::AwsSecretKnown => Box::new(GetAwsSecretTask),
             GoalType::InfluxInstanceSelected => Box::new(SelectInfluxInstanceTask),
+            GoalType::InfluxLaunched => Box::new(LaunchInfluxTask),
+            GoalType::InfluxQueried => Box::new(QueryInfluxTask),
             GoalType::KubeContextSelected => Box::new(SelectKubeContextTask),
-            GoalType::RdsInstanceSelected => Box::new(SelectRdsInstanceTask),
             GoalType::LogLevelSet => Box::new(SetLogLevelTask),
+            GoalType::OrganizationSelected => Box::new(SelectOrganizationTask),
+            GoalType::PgcliRunning => Box::new(RunPgcliTask),
+            GoalType::PortForwardEstablished => Box::new(PortForwardTask),
+            GoalType::RdsInstanceSelected => Box::new(SelectRdsInstanceTask),
+            GoalType::SsoTokenValid => Box::new(PerformSsoTask),
+            GoalType::TabCompletionsExist => Box::new(CreateTabCompletionsTask),
+            GoalType::VaultSecretKnown => Box::new(GetVaultSecretTask),
+            GoalType::VaultTokenValid => Box::new(LoginToVaultTask),
         }
     }
 }
