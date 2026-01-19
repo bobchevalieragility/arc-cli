@@ -33,7 +33,7 @@ impl Task for LaunchInfluxTask {
         let influx_instance = state.get_influx_instance(&influx_selection_goal)?;
 
         // If the password for this Influx instance has not yet been retrieved, we need to wait for that goal to complete
-        let influx_secret_name = influx_instance.secret_id().to_string();
+        let influx_secret_name = influx_instance.ui_secret_id().to_string();
         let secret_goal = Goal::aws_secret_known(influx_secret_name);
         if !state.contains(&secret_goal) {
             return Ok(GoalStatus::Needs(secret_goal));

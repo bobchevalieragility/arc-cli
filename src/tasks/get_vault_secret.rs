@@ -59,7 +59,7 @@ impl Task for GetVaultSecretTask {
         let secrets: HashMap<String, String> = kv2::read(&client, "kv-v2", &secret_path).await?;
 
         // Optionally extract a specific field from the secret and format for display
-        let (_, outro_text) = match params {
+        let (secret_value, outro_text) = match params {
             GoalParams::VaultSecretKnown{ field: Some(f), .. } => {
                 // Extract specific field
                 //TODO abstract this logic into a function
@@ -86,7 +86,7 @@ impl Task for GetVaultSecretTask {
             _ => return Err(ArcError::invalid_goal_params(GoalType::VaultSecretKnown, params)),
         };
 
-        Ok(GoalStatus::Completed(TaskResult::VaultSecret, outro_text))
+        Ok(GoalStatus::Completed(TaskResult::VaultSecret(secret_value), outro_text))
     }
 }
 

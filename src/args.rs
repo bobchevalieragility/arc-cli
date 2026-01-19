@@ -1,6 +1,8 @@
 use clap::{Parser, Subcommand};
 use std;
 use std::convert::From;
+use std::path::PathBuf;
+use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use crate::tasks::set_log_level::Level;
 use crate::goals::Goal;
 
@@ -44,6 +46,20 @@ pub enum CliCommand {
     Pgcli,
     #[command(about = "Launch the InfluxDB UI")]
     Influx,
+    #[command(about = "Query InfluxDB and save results to a CSV file")]
+    InfluxQuery {
+        #[arg(short, long, help = "Query for all records on this day (e.g., '2026-01-19')", conflicts_with = "start")]
+        day: Option<NaiveDate>,
+
+        #[arg(short, long, help = "Start time as either RFC3339 or ms since epoch (e.g. '2026-01-01T00:00:00Z')", conflicts_with = "day", value_parser = parse_datetime)]
+        start: Option<DateTime<Utc>>,
+
+        #[arg(short, long, help = "End time as either RFC3339 or ms since epoch. Defaults to NOW. (e.g. '2025-01-19T00:00:00Z')", requires = "start", conflicts_with = "day", value_parser = parse_datetime)]
+        end: Option<DateTime<Utc>>,
+
+        #[arg(short, long, help = "Path to output file")]
+        output: PathBuf,
+    },
     #[command(about = "Start port-forwarding to a Kubernetes service")]
     PortForward {
         #[arg(short, long, help = "Service name, e.g. 'metrics' (if omitted, will prompt)")]
@@ -79,6 +95,9 @@ impl CliCommand {
                 Goal::terminal_port_forward_established(service, port)
             ],
             CliCommand::Influx => vec![Goal::terminal_influx_launched()],
+            CliCommand::InfluxQuery { day, start, end, output } => vec![
+                Goal::terminal_influx_queried(day, start, end, output)
+            ],
             CliCommand::Switch { aws_profile: true, kube_context: true } => vec![
                 Goal::terminal_aws_profile_selected(),
                 Goal::terminal_kube_context_selected(),
@@ -98,4 +117,22 @@ impl CliCommand {
             ],
         }
     }
+}
+
+fn parse_datetime(input: &str) -> Result<DateTime<Utc>, String> {
+    // Try parsing as milliseconds since epoch
+    if let Ok(millis) = input.parse::<i64>() {
+        // Convert to seconds and nanoseconds
+        let seconds = millis / 1000;
+        let nanoseconds = (millis % 1000) * 1_000_000;
+
+        return Utc.timestamp_opt(seconds, nanoseconds as u32)
+            .single()
+            .ok_or_else(|| format!("Milliseconds since epoch '{}' is out of range", input));
+    }
+
+    // Try parsing as RFC3339 string
+    DateTime::parse_from_rfc3339(input)
+        .map(|dt| dt.with_timezone(&Utc))
+        .map_err(|e| format!("Invalid datetime format '{}': {}", input, e))
 }

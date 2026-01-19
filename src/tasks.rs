@@ -5,6 +5,7 @@ pub mod launch_influx;
 pub mod perform_sso;
 pub mod login_to_vault;
 pub mod port_forward;
+pub mod query_influx;
 pub mod run_pgcli;
 pub mod select_actuator_service;
 pub mod select_aws_profile;
@@ -38,6 +39,7 @@ pub enum TaskResult {
     AwsSecret(String),
     InfluxCommand,
     InfluxInstance(InfluxInstance),
+    InfluxQueryCompleted,
     KubeContext{ context: KubeContextInfo, updated: bool },
     LogLevel,
     PgcliCommand(String),
@@ -45,7 +47,7 @@ pub enum TaskResult {
     RdsInstance(RdsInstance),
     SsoSessionValid,
     TabCompletionsCreated,
-    VaultSecret,
+    VaultSecret(String),
     VaultToken(String),
 }
 

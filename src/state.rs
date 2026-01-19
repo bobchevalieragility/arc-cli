@@ -84,6 +84,13 @@ impl State {
         }
     }
 
+    pub(crate) fn get_vault_secret(&self, goal: &Goal) -> Result<String, ArcError> {
+        match self.get(goal)? {
+            TaskResult::VaultSecret(x) => Ok(x.clone()),
+            result => Err(ArcError::invalid_state(goal, "VaultSecret", result)),
+        }
+    }
+
     pub(crate) fn get_vault_token(&self, goal: &Goal) -> Result<String, ArcError> {
         match self.get(goal)? {
             TaskResult::VaultToken(x) => Ok(x.clone()),

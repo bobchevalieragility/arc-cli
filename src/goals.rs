@@ -1,5 +1,6 @@
 use std;
 use std::convert::From;
+use chrono::{DateTime, NaiveDate, Utc};
 use crate::tasks::Task;
 use crate::tasks::create_tab_completions::CreateTabCompletionsTask;
 use crate::tasks::get_aws_secret::GetAwsSecretTask;
@@ -8,6 +9,7 @@ use crate::tasks::launch_influx::LaunchInfluxTask;
 use crate::tasks::login_to_vault::LoginToVaultTask;
 use crate::tasks::perform_sso::PerformSsoTask;
 use crate::tasks::port_forward::PortForwardTask;
+use crate::tasks::query_influx::QueryInfluxTask;
 use crate::tasks::run_pgcli::RunPgcliTask;
 use crate::tasks::select_actuator_service::SelectActuatorServiceTask;
 use crate::tasks::select_aws_profile::SelectAwsProfileTask;
@@ -64,6 +66,16 @@ impl Goal {
         Goal::new_terminal(GoalType::InfluxLaunched, GoalParams::None)
     }
 
+    pub fn terminal_influx_queried(
+        day: Option<NaiveDate>,
+        start: Option<DateTime<Utc>>,
+        end: Option<DateTime<Utc>>,
+        output: std::path::PathBuf
+    ) -> Self {
+        let params = GoalParams::InfluxQueried { day, start, end, output };
+        Goal::new_terminal(GoalType::InfluxQueried, params)
+    }
+
     pub fn kube_context_selected() -> Self {
         let params = GoalParams::KubeContextSelected { use_current: true };
         Goal::new(GoalType::KubeContextSelected, params)
@@ -114,6 +126,14 @@ impl Goal {
         Goal::new_terminal(GoalType::TabCompletionsExist, GoalParams::None)
     }
 
+    pub fn vault_secret_known(secret_path: String, secret_field: String) -> Self {
+        let params = GoalParams::VaultSecretKnown {
+            path: Some(secret_path),
+            field: Some(secret_field)
+        };
+        Goal::new(GoalType::VaultSecretKnown, params)
+    }
+
     pub fn vault_token_valid() -> Self {
         Goal::new(GoalType::VaultTokenValid, GoalParams::None)
     }
@@ -137,6 +157,7 @@ pub enum GoalType {
     AwsSecretKnown,
     InfluxInstanceSelected,
     InfluxLaunched,
+    InfluxQueried,
     KubeContextSelected,
     LogLevelSet,
     PgcliRunning,
@@ -155,6 +176,7 @@ impl GoalType {
             GoalType::AwsSecretKnown => Box::new(GetAwsSecretTask),
             GoalType::VaultSecretKnown => Box::new(GetVaultSecretTask),
             GoalType::InfluxLaunched => Box::new(LaunchInfluxTask),
+            GoalType::InfluxQueried => Box::new(QueryInfluxTask),
             GoalType::VaultTokenValid => Box::new(LoginToVaultTask),
             GoalType::SsoTokenValid => Box::new(PerformSsoTask),
             GoalType::PortForwardEstablished => Box::new(PortForwardTask),
@@ -182,6 +204,12 @@ pub enum GoalParams {
     },
     AwsSecretKnown {
         name: Option<String>,
+    },
+    InfluxQueried {
+        day: Option<NaiveDate>,
+        start: Option<DateTime<Utc>>,
+        end: Option<DateTime<Utc>>,
+        output: std::path::PathBuf,
     },
     KubeContextSelected {
         use_current: bool,
