@@ -4,6 +4,9 @@ const METRICS_DEV_NAME: &str = "metrics (dev)";
 const METRICS_STAGE_NAME: &str = "metrics (stage)";
 const METRICS_PROD_NAME: &str = "metrics (prod)";
 
+const VAULT_PATH: &str = "mp/metrics";
+const VAULT_FIELD: &str = "INFLUXDB_CLI_TOKEN";
+
 #[derive(Debug, Clone, Copy)]
 pub enum InfluxInstance {
     MetricsDev,
@@ -20,7 +23,11 @@ impl InfluxInstance {
         }
     }
 
-    pub fn secret_id(&self) -> &str {
+    pub fn cli_secret_info(&self) -> (&str, &str) {
+        (VAULT_PATH, VAULT_FIELD)
+    }
+
+    pub fn ui_secret_id(&self) -> &str {
         match self {
             InfluxInstance::MetricsDev => "READONLY-InfluxDB-auth-parameters-n6ih7p944s",
             InfluxInstance::MetricsStage => "READONLY-InfluxDB-auth-parameters-sh2akvmz04",

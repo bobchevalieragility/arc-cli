@@ -10,6 +10,7 @@ use crate::tasks::select_aws_profile::AwsProfileInfo;
 use crate::tasks::select_kube_context::KubeContextInfo;
 use std;
 use crate::goals::Goal;
+use crate::organization::Organization;
 
 pub struct State {
     results: HashMap<Goal, TaskResult>,
@@ -70,6 +71,13 @@ impl State {
         }
     }
 
+    pub(crate) fn get_organization(&self, goal: &Goal) -> Result<&Organization, ArcError> {
+        match self.get(goal)? {
+            TaskResult::Organization(x) => Ok(x),
+            result => Err(ArcError::invalid_state(goal, "Organization", result)),
+        }
+    }
+
     pub(crate) fn get_port_forward_info(&self, goal: &Goal) -> Result<&PortForwardInfo, ArcError> {
         match self.get(goal)? {
             TaskResult::PortForward(info) => Ok(info),
@@ -81,6 +89,13 @@ impl State {
         match self.get(goal)? {
             TaskResult::RdsInstance(x) => Ok(x),
             result => Err(ArcError::invalid_state(goal, "RdsInstance", result)),
+        }
+    }
+
+    pub(crate) fn get_vault_secret(&self, goal: &Goal) -> Result<String, ArcError> {
+        match self.get(goal)? {
+            TaskResult::VaultSecret(x) => Ok(x.clone()),
+            result => Err(ArcError::invalid_state(goal, "VaultSecret", result)),
         }
     }
 

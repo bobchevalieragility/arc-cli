@@ -1,5 +1,6 @@
 use std;
 use std::convert::From;
+use chrono::{DateTime, NaiveDate, Utc};
 use crate::tasks::Task;
 use crate::tasks::create_tab_completions::CreateTabCompletionsTask;
 use crate::tasks::get_aws_secret::GetAwsSecretTask;
@@ -8,11 +9,13 @@ use crate::tasks::launch_influx::LaunchInfluxTask;
 use crate::tasks::login_to_vault::LoginToVaultTask;
 use crate::tasks::perform_sso::PerformSsoTask;
 use crate::tasks::port_forward::PortForwardTask;
+use crate::tasks::influx_dump::InfluxDumpTask;
 use crate::tasks::run_pgcli::RunPgcliTask;
 use crate::tasks::select_actuator_service::SelectActuatorServiceTask;
 use crate::tasks::select_aws_profile::SelectAwsProfileTask;
 use crate::tasks::select_influx_instance::SelectInfluxInstanceTask;
 use crate::tasks::select_kube_context::SelectKubeContextTask;
+use crate::tasks::select_organization::SelectOrganizationTask;
 use crate::tasks::select_rds_instance::SelectRdsInstanceTask;
 use crate::tasks::set_log_level::{Level, SetLogLevelTask};
 
@@ -64,6 +67,16 @@ impl Goal {
         Goal::new_terminal(GoalType::InfluxLaunched, GoalParams::None)
     }
 
+    pub fn terminal_influx_dump_completed(
+        day: Option<NaiveDate>,
+        start: Option<DateTime<Utc>>,
+        end: Option<DateTime<Utc>>,
+        output: std::path::PathBuf
+    ) -> Self {
+        let params = GoalParams::InfluxDumpCompleted { day, start, end, output };
+        Goal::new_terminal(GoalType::InfluxDumpCompleted, params)
+    }
+
     pub fn kube_context_selected() -> Self {
         let params = GoalParams::KubeContextSelected { use_current: true };
         Goal::new(GoalType::KubeContextSelected, params)
@@ -82,6 +95,10 @@ impl Goal {
     ) -> Self {
         let params = GoalParams::LogLevelSet { service, package, level, display_only };
         Goal::new_terminal(GoalType::LogLevelSet, params)
+    }
+
+    pub fn organization_selected() -> Self {
+        Goal::new(GoalType::OrganizationSelected, GoalParams::None)
     }
 
     pub fn terminal_pgcli_running() -> Self {
@@ -114,6 +131,14 @@ impl Goal {
         Goal::new_terminal(GoalType::TabCompletionsExist, GoalParams::None)
     }
 
+    pub fn vault_secret_known(secret_path: String, secret_field: String) -> Self {
+        let params = GoalParams::VaultSecretKnown {
+            path: Some(secret_path),
+            field: Some(secret_field)
+        };
+        Goal::new(GoalType::VaultSecretKnown, params)
+    }
+
     pub fn vault_token_valid() -> Self {
         Goal::new(GoalType::VaultTokenValid, GoalParams::None)
     }
@@ -137,8 +162,10 @@ pub enum GoalType {
     AwsSecretKnown,
     InfluxInstanceSelected,
     InfluxLaunched,
+    InfluxDumpCompleted,
     KubeContextSelected,
     LogLevelSet,
+    OrganizationSelected,
     PgcliRunning,
     PortForwardEstablished,
     RdsInstanceSelected,
@@ -151,20 +178,22 @@ pub enum GoalType {
 impl GoalType {
     pub fn to_task(&self) -> Box<dyn Task> {
         match self {
-            GoalType::TabCompletionsExist => Box::new(CreateTabCompletionsTask),
-            GoalType::AwsSecretKnown => Box::new(GetAwsSecretTask),
-            GoalType::VaultSecretKnown => Box::new(GetVaultSecretTask),
-            GoalType::InfluxLaunched => Box::new(LaunchInfluxTask),
-            GoalType::VaultTokenValid => Box::new(LoginToVaultTask),
-            GoalType::SsoTokenValid => Box::new(PerformSsoTask),
-            GoalType::PortForwardEstablished => Box::new(PortForwardTask),
-            GoalType::PgcliRunning => Box::new(RunPgcliTask),
             GoalType::ActuatorServiceSelected => Box::new(SelectActuatorServiceTask),
             GoalType::AwsProfileSelected => Box::new(SelectAwsProfileTask),
+            GoalType::AwsSecretKnown => Box::new(GetAwsSecretTask),
             GoalType::InfluxInstanceSelected => Box::new(SelectInfluxInstanceTask),
+            GoalType::InfluxLaunched => Box::new(LaunchInfluxTask),
+            GoalType::InfluxDumpCompleted => Box::new(InfluxDumpTask),
             GoalType::KubeContextSelected => Box::new(SelectKubeContextTask),
-            GoalType::RdsInstanceSelected => Box::new(SelectRdsInstanceTask),
             GoalType::LogLevelSet => Box::new(SetLogLevelTask),
+            GoalType::OrganizationSelected => Box::new(SelectOrganizationTask),
+            GoalType::PgcliRunning => Box::new(RunPgcliTask),
+            GoalType::PortForwardEstablished => Box::new(PortForwardTask),
+            GoalType::RdsInstanceSelected => Box::new(SelectRdsInstanceTask),
+            GoalType::SsoTokenValid => Box::new(PerformSsoTask),
+            GoalType::TabCompletionsExist => Box::new(CreateTabCompletionsTask),
+            GoalType::VaultSecretKnown => Box::new(GetVaultSecretTask),
+            GoalType::VaultTokenValid => Box::new(LoginToVaultTask),
         }
     }
 }
@@ -182,6 +211,12 @@ pub enum GoalParams {
     },
     AwsSecretKnown {
         name: Option<String>,
+    },
+    InfluxDumpCompleted {
+        day: Option<NaiveDate>,
+        start: Option<DateTime<Utc>>,
+        end: Option<DateTime<Utc>>,
+        output: std::path::PathBuf,
     },
     KubeContextSelected {
         use_current: bool,

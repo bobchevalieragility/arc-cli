@@ -5,11 +5,13 @@ pub mod launch_influx;
 pub mod perform_sso;
 pub mod login_to_vault;
 pub mod port_forward;
+pub mod influx_dump;
 pub mod run_pgcli;
 pub mod select_actuator_service;
 pub mod select_aws_profile;
 pub mod select_influx_instance;
 pub mod select_kube_context;
+pub mod select_organization;
 pub mod select_rds_instance;
 pub mod set_log_level;
 
@@ -20,6 +22,7 @@ use crate::aws::influx::InfluxInstance;
 use crate::aws::rds::RdsInstance;
 use crate::errors::ArcError;
 use crate::goals::GoalParams;
+use crate::organization::Organization;
 use crate::tasks::port_forward::PortForwardInfo;
 use crate::tasks::select_actuator_service::ActuatorService;
 use crate::tasks::select_aws_profile::AwsProfileInfo;
@@ -38,14 +41,16 @@ pub enum TaskResult {
     AwsSecret(String),
     InfluxCommand,
     InfluxInstance(InfluxInstance),
+    InfluxDumpCompleted,
     KubeContext{ context: KubeContextInfo, updated: bool },
     LogLevel,
+    Organization(Organization),
     PgcliCommand(String),
     PortForward(PortForwardInfo),
     RdsInstance(RdsInstance),
     SsoSessionValid,
     TabCompletionsCreated,
-    VaultSecret,
+    VaultSecret(String),
     VaultToken(String),
 }
 

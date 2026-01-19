@@ -35,6 +35,9 @@ pub enum ArcError {
     #[error("Could not determine home directory")]
     HomeDirError,
 
+    #[error("InfluxDB query error: {0}")]
+    InfluxQueryError(String),
+
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
 
@@ -68,6 +71,9 @@ pub enum ArcError {
     #[error("Unable to lookup Kube Service spec: {0}")]
     KubeServiceSpecError(String),
 
+    #[error("HTTP request error: {0}")]
+    ReqwestError(#[from] reqwest::Error),
+
     #[error("Tokio Join error: {0}")]
     TokioJoinError(#[from] tokio::task::JoinError),
 
@@ -91,6 +97,10 @@ pub enum ArcError {
 }
 
 impl ArcError {
+    pub fn influx_query_error(msg: impl Into<String>) -> Self {
+        ArcError::InfluxQueryError(msg.into())
+    }
+
     pub fn insufficient_state(goal: impl Into<String>) -> Self {
         ArcError::InsufficientState(goal.into())
     }
