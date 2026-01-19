@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.2.1](https://github.com/bobchevalieragility/arc-cli/compare/v0.2.0...v0.2.1)
+
+### ⛰️ Features
+
+
+- Add influx-query task - ([0adbc05](https://github.com/bobchevalieragility/arc-cli/commit/0adbc05c835288897f8ed619d48d43644c39c8a1))
+
+
 ## [0.2.0](https://github.com/bobchevalieragility/arc-cli/compare/v0.1.4...v0.2.0)
 
 ### 🐛 Bug Fixes
