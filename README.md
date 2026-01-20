@@ -30,10 +30,16 @@ The available AWS Profiles are inferred by inspecting ~/.aws/config.  Similarly,
 
 ![pgcli](assets/demo-switch.gif)
 
+## Prerequisites
+- [pgcli](https://www.pgcli.com/) (if utilizing the `pgcli` command) 
+   ```bash
+   brew install pgcli
+   ```
+
 ## Installation
 
 ### Option 1: From Source
-1. Install Rust (from https://www.rust-lang.org/tools/install)
+1. Install Rust (see https://www.rust-lang.org/tools/install for alternate methods)
    ```bash
    curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh
    ```

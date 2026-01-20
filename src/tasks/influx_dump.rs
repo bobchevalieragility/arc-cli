@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use chrono::NaiveTime;
 use chrono::Utc;
 use cliclack::intro;
 use reqwest;
@@ -63,20 +64,24 @@ impl Task for InfluxDumpTask {
             _ => return Err(ArcError::invalid_goal_params(GoalType::InfluxDumpCompleted, params)),
         };
 
-        // Infer the start of the time range
-        let range_begin = if let Some(start_time) = start {
-            *start_time
+        // Infer the start and end of the time range
+        let (range_begin, range_end) = if let Some(start_time) = start {
+            (*start_time, end.unwrap_or_else(Utc::now))
         } else if let Some(day_str) = day {
-            use chrono::NaiveTime;
-            day_str.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap()).and_utc()
+            let start = day_str
+                .and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                .and_utc();
+            let end = day_str
+                .and_time(NaiveTime::from_hms_opt(11, 59, 59).unwrap())
+                .and_utc();
+            (start, end)
         } else {
             return Err(ArcError::invalid_goal_params(GoalType::InfluxDumpCompleted, "Missing 'day' or 'start'"));
         };
-        let range_begin = range_begin.format("%Y-%m-%dT%H:%M:%SZ");
 
-        // Infer the end of the time range
-        let range_end = end.unwrap_or_else(Utc::now)
-            .format("%Y-%m-%dT%H:%M:%SZ");
+        // Apply Zulu format to the time range
+        let range_begin = range_begin.format("%Y-%m-%dT%H:%M:%SZ");
+        let range_end = range_end.format("%Y-%m-%dT%H:%M:%SZ");
 
         // Build Flux query to get all data in the time range
         let dropped_cols = format!(r#"["{}"]"#, DROPPED_COLS.join(r#"", ""#));
@@ -121,10 +126,10 @@ impl Task for InfluxDumpTask {
         std::fs::write(output, &filtered_csv)?;
 
         let msg = format!(
-            "Start : {}\nEnd   : {}\nOutput: {}",
-            range_begin, range_end, output.display()
+            "Start : {}\nEnd   : {}\nOrg   : {}\nOutput: {}",
+            range_begin, range_end, organization.id(), output.display()
         );
-        let outro_text = OutroText::multi("Influx Query Results".to_string(), msg);
+        let outro_text = OutroText::multi("Influx Query Params".to_string(), msg);
 
         Ok(GoalStatus::Completed(TaskResult::InfluxDumpCompleted, outro_text))
     }
