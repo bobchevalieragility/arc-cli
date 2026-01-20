@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.2.2](https://github.com/bobchevalieragility/arc-cli/compare/v0.2.1...v0.2.2)
+
+### 📚 Documentation
+
+
+- Update README - ([df59fd0](https://github.com/bobchevalieragility/arc-cli/commit/df59fd0be7d7d4f0084b150227dc67d74efb7d46))
+
+
 ## [0.2.1](https://github.com/bobchevalieragility/arc-cli/compare/v0.2.0...v0.2.1)
 
 ### ⛰️ Features
