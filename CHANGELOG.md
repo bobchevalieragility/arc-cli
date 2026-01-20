@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.2.3](https://github.com/bobchevalieragility/arc-cli/compare/v0.2.2...v0.2.3)
+
+### 🐛 Bug Fixes
+
+
+- Correct -day option of influx-dump - ([b186e2a](https://github.com/bobchevalieragility/arc-cli/commit/b186e2a2fb1ce9c0146d2e141ec7a9be2cbfee60))
+
+
 ## [0.2.2](https://github.com/bobchevalieragility/arc-cli/compare/v0.2.1...v0.2.2)
 
 ### 📚 Documentation
