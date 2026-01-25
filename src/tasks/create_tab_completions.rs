@@ -33,8 +33,8 @@ impl Task for CreateTabCompletionsTask {
         let mut cmd = CliArgs::command();
         generate(shell, &mut cmd, "arc", &mut file);
 
-        let prompt = format!("Tab completions file generated to {}", path.display());
-        let msg = "Source this file from your startup script (i.e. ~/.zshrc) to enable.";
+        let prompt = "Tab completions file generated".to_string();
+        let msg = format!("Completions file: {}\nSource this file from your startup script (i.e. ~/.zshrc) to enable.", path.display());
         let outro_text = OutroText::multi(prompt, msg.to_string());
 
         Ok(GoalStatus::Completed(TaskResult::TabCompletionsCreated, outro_text))
