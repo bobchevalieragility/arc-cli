@@ -6,6 +6,7 @@ use kube::config::Kubeconfig;
 use crate::aws::eks_cluster::EksCluster;
 use crate::errors::ArcError;
 use crate::{GoalStatus, OutroText};
+use crate::config::CliConfig;
 use crate::goals::GoalParams;
 use crate::state::State;
 use crate::tasks::{Task, TaskResult};
@@ -20,7 +21,7 @@ impl Task for SelectKubeContextTask {
         Ok(())
     }
 
-    async fn execute(&self, params: &GoalParams, _state: &State) -> Result<GoalStatus, ArcError> {
+    async fn execute(&self, params: &GoalParams, _config: &CliConfig, _state: &State) -> Result<GoalStatus, ArcError> {
         if let GoalParams::KubeContextSelected{ use_current: true } = params {
             if let Ok(current_kubeconfig) = env::var("KUBECONFIG") {
                 let kube_path = PathBuf::from(current_kubeconfig);

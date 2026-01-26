@@ -62,11 +62,14 @@ pub enum CliCommand {
     },
     #[command(about = "Start port-forwarding to a Kubernetes service")]
     PortForward {
-        #[arg(short, long, help = "Service name, e.g. 'metrics' (if omitted, will prompt)")]
+        #[arg(short, long, help = "Service name, e.g. 'metrics' (if omitted, will prompt)", conflicts_with = "group")]
         service: Option<String>,
 
-        #[arg(short, long, help = "Local port (defaults to random, unused port)")]
+        #[arg(short, long, help = "Local port (defaults to random, unused port)", conflicts_with = "group")]
         port: Option<u16>,
+
+        #[arg(short, long, help = "Group of services to forward to (must be defined in ~/.arc-cli/config.toml)", conflicts_with = "service")]
+        group: bool,
     },
     #[command(about = "Switch AWS profile and/or Kubernetes context")]
     Switch {
@@ -91,8 +94,8 @@ impl CliCommand {
                 Goal::terminal_log_level_set(service, package, level, display_only)
             ],
             CliCommand::Pgcli => vec![Goal::terminal_pgcli_running()],
-            CliCommand::PortForward { service, port } => vec![
-                Goal::terminal_port_forward_established(service, port)
+            CliCommand::PortForward { service, port, group } => vec![
+                Goal::terminal_port_forward_established(service, port, group)
             ],
             CliCommand::InfluxUi => vec![Goal::terminal_influx_launched()],
             CliCommand::InfluxDump { day, start, end, output } => vec![

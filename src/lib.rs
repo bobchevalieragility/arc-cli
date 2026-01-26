@@ -1,5 +1,6 @@
 mod args;
 mod aws;
+mod config;
 mod errors;
 mod goals;
 mod organization;
@@ -14,20 +15,30 @@ use cliclack::{outro, outro_note};
 use console::style;
 use crate::errors::ArcError;
 use std;
+use crate::config::CliConfig;
 use crate::goals::Goal;
 use crate::state::State;
 use crate::tasks::TaskResult;
 
 pub async fn run(args: CliArgs) -> Result<(), ArcError> {
+    // Load CLI configuration from file, or use defaults if file does not exist
+    let config_file = config_dir()?.join("config.toml");
+    let config: CliConfig = if config_file.exists() {
+        let toml_content = std::fs::read_to_string(config_file)?;
+        toml::from_str(&toml_content)?
+    } else {
+        CliConfig::default()
+    };
+
     // A single ArcCommand may map to multiple goals
     // (e.g., Switch may require both AWS profile and Kube context selection)
     let terminal_goals = args.command.to_goals();
 
     // Execute each goal, including any dependent goals
-    execute_goals(terminal_goals).await
+    execute_goals(terminal_goals, config).await
 }
 
-async fn execute_goals(terminal_goals: Vec<Goal>) -> Result<(), ArcError> {
+async fn execute_goals(terminal_goals: Vec<Goal>, config: CliConfig) -> Result<(), ArcError> {
     let mut goals = terminal_goals.clone();
     let mut eval_string = String::new();
     let mut state = State::new();
@@ -54,7 +65,7 @@ async fn execute_goals(terminal_goals: Vec<Goal>) -> Result<(), ArcError> {
         }
 
         // Attempt to complete the next goal on the stack
-        let goal_result = task.execute(params, &state).await;
+        let goal_result = task.execute(params, &config, &state).await;
 
         // If next goal indicates that it needs the result of a dependent goal, then add the
         // dependent goal onto the stack, leaving the original goal to be executed at a later time.
@@ -111,12 +122,18 @@ impl OutroText {
     }
 }
 
-fn config_path() -> Result<std::path::PathBuf, ArcError> {
+fn config_dir() -> Result<std::path::PathBuf, ArcError> {
     //TODO .arc-cli path should be configurable
-    let mut config_path = home::home_dir().ok_or_else(|| ArcError::HomeDirError)?;
-    config_path.push(".arc-cli");
+    let mut path = home::home_dir().ok_or_else(|| ArcError::HomeDirError)?;
+    path.push(".arc-cli");
 
     // Create the config directory if it doesn't already exist
-    std::fs::create_dir_all(&config_path)?;
-    Ok(config_path)
+    std::fs::create_dir_all(&path)?;
+    Ok(path)
+}
+
+fn config_file() -> Result<std::path::PathBuf, ArcError> {
+    let mut path = config_dir()?;
+    path.push("config.toml");
+    Ok(path)
 }

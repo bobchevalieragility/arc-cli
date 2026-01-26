@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use std::env;
 use crate::aws::aws_account::AwsAccount;
 use crate::{aws, GoalStatus, OutroText};
+use crate::config::CliConfig;
 use crate::errors::ArcError;
 use crate::goals::GoalParams;
 use crate::state::State;
@@ -18,7 +19,7 @@ impl Task for SelectAwsProfileTask {
         Ok(())
     }
 
-    async fn execute(&self, params: &GoalParams, _state: &State) -> Result<GoalStatus, ArcError> {
+    async fn execute(&self, params: &GoalParams, _config: &CliConfig, _state: &State) -> Result<GoalStatus, ArcError> {
         if let GoalParams::AwsProfileSelected{ use_current: true } = params {
             // User wants to use current AWS_PROFILE, if it's already set
             if let Ok(current_profile) = env::var("AWS_PROFILE") {
