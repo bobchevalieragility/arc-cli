@@ -6,7 +6,7 @@ use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use crate::tasks::set_log_level::Level;
 use crate::goals::Goal;
 
-// This constant must be kept in sync with its usage in the PortForward #[arg] attribute below
+// This constant must be kept in sync with its usage in the #[arg] attributes below
 pub const PROMPT: &str = "PROMPT";
 
 #[derive(Parser, Clone, Debug, PartialEq, Eq, Hash)]
@@ -76,11 +76,11 @@ pub enum CliCommand {
     },
     #[command(about = "Switch AWS profile and/or Kubernetes context")]
     Switch {
-        #[arg(short, long, help = "Switch AWS profile (if false and kube_context is false, will switch both)")]
-        aws_profile: bool,
+        #[arg(short, long, help = "Switch AWS profile, if blank you'll be prompted for a profile", num_args = 0..=1, default_missing_value = "PROMPT")]
+        aws_profile: Option<String>,
 
-        #[arg(short, long, help = "Switch kube context (if false and kube_context is false, will switch both)")]
-        kube_context: bool,
+        #[arg(short, long, help = "Switch K8 context, if blank you'll be prompted for a context", num_args = 0..=1, default_missing_value = "PROMPT")]
+        kube_context: Option<String>,
     },
     #[command(about = "Generate a shell completion script")]
     Completions,
@@ -104,19 +104,19 @@ impl CliCommand {
             CliCommand::InfluxDump { day, start, end, output } => vec![
                 Goal::terminal_influx_dump_completed(day, start, end, output)
             ],
-            CliCommand::Switch { aws_profile: true, kube_context: true } => vec![
-                Goal::terminal_aws_profile_selected(),
-                Goal::terminal_kube_context_selected(),
+            CliCommand::Switch { aws_profile: Some(p), kube_context: Some(k) } => vec![
+                Goal::terminal_kube_context_selected(k),
+                Goal::terminal_aws_profile_selected(p),
             ],
-            CliCommand::Switch { aws_profile: false, kube_context: false } => vec![
-                Goal::terminal_aws_profile_selected(),
-                Goal::terminal_kube_context_selected(),
+            CliCommand::Switch { aws_profile: None, kube_context: None } => vec![
+                Goal::terminal_kube_context_selected(PROMPT),
+                Goal::terminal_aws_profile_selected(PROMPT),
             ],
-            CliCommand::Switch { aws_profile: true, kube_context: false } => vec![
-                Goal::terminal_aws_profile_selected(),
+            CliCommand::Switch { aws_profile: Some(p), kube_context: None } => vec![
+                Goal::terminal_aws_profile_selected(p),
             ],
-            CliCommand::Switch { aws_profile: false, kube_context: true } => vec![
-                Goal::terminal_kube_context_selected(),
+            CliCommand::Switch { aws_profile: None, kube_context: Some(k) } => vec![
+                Goal::terminal_kube_context_selected(k),
             ],
             CliCommand::Vault { path, field } => vec![
                 Goal::terminal_vault_secret_known(path, field)

@@ -3,9 +3,10 @@ use async_trait::async_trait;
 use std::env;
 use crate::aws::aws_account::AwsAccount;
 use crate::{aws, GoalStatus, OutroText};
+use crate::args::PROMPT;
 use crate::config::CliConfig;
 use crate::errors::ArcError;
-use crate::goals::GoalParams;
+use crate::goals::{GoalParams, GoalType};
 use crate::state::State;
 use crate::tasks::{Task, TaskResult};
 
@@ -20,7 +21,7 @@ impl Task for SelectAwsProfileTask {
     }
 
     async fn execute(&self, params: &GoalParams, _config: &CliConfig, _state: &State) -> Result<GoalStatus, ArcError> {
-        if let GoalParams::AwsProfileSelected{ use_current: true } = params {
+        if let GoalParams::AwsProfileSelected{ use_current: true, .. } = params {
             // User wants to use current AWS_PROFILE, if it's already set
             if let Ok(current_profile) = env::var("AWS_PROFILE") {
                 let account = get_aws_account(&current_profile).await?;
@@ -32,8 +33,29 @@ impl Task for SelectAwsProfileTask {
             }
         }
 
-        // Prompt user to select an AWS profile
-        let selected_aws_profile = prompt_for_aws_profile().await?;
+        // Extract profile arg from params
+        let profile: String = match params {
+            GoalParams::AwsProfileSelected{ profile: p, .. } => p.to_string(),
+            _ => Err(ArcError::invalid_goal_params(GoalType::AwsProfileSelected, params))?,
+        };
+
+        // Determine the name of the AWS profile to use
+        let selected_aws_profile = if profile == PROMPT {
+            // Prompt user to select an AWS profile
+            prompt_for_aws_profile().await?
+        } else {
+            // An explicit profile was provided so let's validate that it exists in the AWS config
+            let available_profiles = get_available_aws_profiles().await?;
+            if available_profiles.contains(&profile) {
+                profile
+            } else {
+                return Err(ArcError::AwsProfileError(format!(
+                    "Profile '{}' not found. Available profiles: {}",
+                    profile,
+                    available_profiles.join(", ")
+                )));
+            }
+        };
 
         // Set outro content
         let key = "Switched to AWS profile".to_string();
