@@ -22,7 +22,7 @@ use crate::tasks::TaskResult;
 
 pub async fn run(args: CliArgs) -> Result<(), ArcError> {
     // Load CLI configuration from file, or use defaults if file does not exist
-    let config_file = config_dir()?.join("config.toml");
+    let config_file = config_file()?;
     let config: CliConfig = if config_file.exists() {
         let toml_content = std::fs::read_to_string(config_file)?;
         toml::from_str(&toml_content)?
