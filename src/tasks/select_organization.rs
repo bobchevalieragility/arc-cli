@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use crate::errors::ArcError;
 use crate::goals::GoalParams;
 use crate::{GoalStatus, OutroText};
+use crate::config::CliConfig;
 use crate::organization::Organization;
 use crate::state::State;
 use crate::tasks::{Task, TaskResult};
@@ -17,7 +18,7 @@ impl Task for SelectOrganizationTask {
         Ok(())
     }
 
-    async fn execute(&self, _params: &GoalParams, _state: &State) -> Result<GoalStatus, ArcError> {
+    async fn execute(&self, _params: &GoalParams, _config: &CliConfig, _state: &State) -> Result<GoalStatus, ArcError> {
         let available_orgs = Organization::all();
 
         // Prompt user to select organization

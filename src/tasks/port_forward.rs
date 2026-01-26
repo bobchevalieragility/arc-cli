@@ -12,6 +12,8 @@ use crate::aws::kube_service::KubeService;
 use crate::errors::ArcError;
 use crate::goals::{Goal, GoalParams, GoalType};
 use crate::{GoalStatus, OutroText};
+use crate::args::PROMPT;
+use crate::config::CliConfig;
 use crate::state::State;
 use crate::tasks::{sleep_indicator, Task, TaskResult};
 
@@ -25,7 +27,7 @@ impl Task for PortForwardTask {
         Ok(())
     }
 
-    async fn execute(&self, params: &GoalParams, state: &State) -> Result<GoalStatus, ArcError> {
+    async fn execute(&self, params: &GoalParams, config: &CliConfig, state: &State) -> Result<GoalStatus, ArcError> {
         // Ensure that SSO token has not expired
         let sso_goal = Goal::sso_token_valid();
         if !state.contains(&sso_goal) {
@@ -53,66 +55,81 @@ impl Task for PortForwardTask {
 
         let service_api: Api<Service> = Api::namespaced(client.clone(), &cluster.namespace());
 
-        // Determine which service to port-forward to, prompting user if necessary
-        let service = match params {
-            GoalParams::PortForwardEstablished{ service: Some(x), .. } => {
-                KubeService::new(x.clone(), get_service_port(&service_api, x).await?)
-            },
-            GoalParams::PortForwardEstablished{ service: None, .. } => prompt_for_service(&service_api).await?,
-            _ => return Err(ArcError::invalid_goal_params(GoalType::PortForwardEstablished, params)),
-        };
+        // Determine which service(s) and port(s) to forward to, prompting user if necessary
+        let targets: Vec<TargetService> = get_target_services(params, config, &service_api).await?;
 
-        // Determine which local port will be used for port-forwarding
-        let local_port: u16 = match params {
-            GoalParams::PortForwardEstablished{ port: Some(p), .. } => *p,
-            GoalParams::PortForwardEstablished{ port: None, .. } => find_available_port().await?,
-            _ => return Err(ArcError::invalid_goal_params(GoalType::PortForwardEstablished, params)),
-        };
-
-        // Find one of the given service's pods
+        // Find pods and start port forwarding for each target service
         let pod_api: Api<Pod> = Api::namespaced(client.clone(), &cluster.namespace());
-        let pod = get_service_pod(&service.name, &service_api, &pod_api).await?;
+        let mut port_forward_infos = Vec::new();
 
-        // Start port forwarding using Kubernetes API
-        let port_forward_handle = tokio::spawn(async move {
-            if let Err(e) = port_forward(&pod, local_port, service.port, &pod_api).await {
-                eprintln!("Port-forward error: {}", e);
-            }
-        });
-        let handle = port_forward_handle.abort_handle();
+        for target in &targets {
+            let service_name = target.service.name.clone();
+            let remote_port = target.service.port;
+            let local_port = target.local_port;
 
-        // Give port-forward time to establish with a progress indicator
-        let end_msg = format!(
-            "Service({}) listening on 127.0.0.1:{}",
-            style(&service.name).dim(),
-            style(local_port).dim()
-        );
-        sleep_indicator(2, "Establishing port-forward...", &end_msg).await;
+            let pod = get_service_pod(&service_name, &service_api, &pod_api).await?;
+            let pod_api_clone = pod_api.clone();
+            let handle = tokio::spawn(async move {
+                if let Err(e) = port_forward(&pod, local_port, remote_port, &pod_api_clone).await {
+                    eprintln!("Port-forward error for {}: {}", service_name, e);
+                }
+            });
 
-        if let GoalParams::PortForwardEstablished{ tear_down: false, .. } = params {
-            // Keep the port-forward open until user manually terminates
-            let prompt = format!("Port-Forwarding to {} service", service.name);
-            let msg = format!("Listening on 127.0.0.1:{}\nPress Ctrl+X to terminate", local_port);
-            outro_note(style(prompt).green(), msg)?;
-
-            // Assume user wants to keep port-forward open until manually closed
-            port_forward_handle.await?;
+            let info = PortForwardInfo::new(target.clone(), handle.abort_handle());
+            port_forward_infos.push(info);
         }
 
-        let info = PortForwardInfo::new(local_port, handle.clone());
-        Ok(GoalStatus::Completed(TaskResult::PortForward(info), OutroText::None))
+        let summary_msg = targets.iter().map(|t| {
+            format!(
+                "{}{}{}{}",
+                style("Service(").dim(),
+                &t.service.name,
+                style(") listening on 127.0.0.1:").dim(),
+                t.local_port
+            )
+        }).collect::<Vec<_>>().join("\n");
+
+        if let GoalParams::PortForwardEstablished { tear_down: true, .. } = params {
+            // Give port-forwards time to establish with a progress indicator
+            sleep_indicator(
+                2,
+                "Establishing port-forward(s)...",
+                &summary_msg
+            ).await;
+        } else {
+            // Give port-forwards time to establish with a progress indicator
+            sleep_indicator(
+                2,
+                "Establishing port-forward(s)...",
+                "Port-Forward session(s) established"
+            ).await;
+
+            let prompt = "Press Ctrl+C to terminate port-forwarding";
+            outro_note(style(prompt).green(), summary_msg)?;
+
+            // Wait indefinitely - tasks will run until user interrupts (Ctrl+C)
+            tokio::signal::ctrl_c().await?;
+        }
+
+        Ok(GoalStatus::Completed(TaskResult::PortForward(port_forward_infos), OutroText::None))
     }
+}
+
+#[derive(Clone, Debug)]
+pub struct TargetService {
+    pub service: KubeService,
+    pub local_port: u16,
 }
 
 #[derive(Debug)]
 pub struct PortForwardInfo {
-    pub local_port: u16,
+    pub service: TargetService,
     pub handle: AbortHandle,
 }
 
 impl PortForwardInfo {
-    pub fn new(local_port: u16, handle: AbortHandle) -> PortForwardInfo {
-        PortForwardInfo { local_port, handle }
+    pub fn new(service: TargetService, handle: AbortHandle) -> PortForwardInfo {
+        PortForwardInfo { service, handle }
     }
 }
 
@@ -121,6 +138,87 @@ impl Drop for PortForwardInfo {
     fn drop(&mut self) {
         self.handle.abort();
     }
+}
+
+async fn get_target_services(
+    params: &GoalParams,
+    config: &CliConfig,
+    service_api: &Api<Service>,
+) -> Result<Vec<TargetService>, ArcError> {
+    match params {
+        GoalParams::PortForwardEstablished { service: Some(s), port: Some(p), .. } => {
+            // Single service and local port specified
+            let remote_port = get_remote_port(&service_api, s).await?;
+            let svc = KubeService::new(s.clone(), remote_port);
+            Ok(vec![TargetService { service: svc, local_port: *p }])
+        },
+        GoalParams::PortForwardEstablished { service: Some(s), port: None, .. } => {
+            // Single service specified
+            let remote_port = get_remote_port(&service_api, s).await?;
+            let svc = KubeService::new(s.clone(), remote_port);
+            let local_port = find_available_port().await?;
+            Ok(vec![TargetService { service: svc, local_port }])
+        },
+        GoalParams::PortForwardEstablished { service: None, port: Some(p), .. } => {
+            // Single local port specified
+            let svc = prompt_for_service(service_api).await?;
+            Ok(vec![TargetService { service: svc, local_port: *p }])
+        },
+        GoalParams::PortForwardEstablished { service: None, port: None, group: None, .. } => {
+            // Single port forward desired, but neither service nor port specified
+            let svc = prompt_for_service(service_api).await?;
+            let local_port = find_available_port().await?;
+            Ok(vec![TargetService { service: svc, local_port }])
+        },
+        GoalParams::PortForwardEstablished { group: Some(group_name), .. } => {
+            // Port-forward to a group of services
+            let group_name_str = if group_name != PROMPT {
+                group_name.as_str()
+            } else {
+                &prompt_for_group_name(config)?
+            };
+
+            // Find the ServiceGroup whose name matches group_name
+            let service_group = config.port_forward.groups
+                .iter()
+                .find(|group| group.name == group_name_str)
+                .ok_or_else(|| ArcError::invalid_config_error(&format!("Port-forward group '{}' not found in config", group_name_str)))?;
+
+            // Convert the services to TargetService objects
+            let mut targets = Vec::new();
+            for s in &service_group.services {
+                let remote_port = get_remote_port(&service_api, &s.name).await?;
+                let svc = KubeService::new(s.name.clone(), remote_port);
+                targets.push(TargetService { service: svc, local_port: s.local_port });
+            }
+            Ok(targets)
+        },
+        _ => Err(ArcError::invalid_goal_params(GoalType::PortForwardEstablished, params)),
+    }
+}
+
+fn prompt_for_group_name(config: &CliConfig) -> Result<String, ArcError> {
+    let group_name = match config.port_forward.groups.len() {
+        0 => return Err(ArcError::invalid_config_error("No port-forward groups defined in config")),
+        1 => {
+            let name = &config.port_forward.groups[0].name;
+            cliclack::log::info(format!(
+                "Selecting only group found in {}: {}",
+                style(crate::config_file()?.display()).dim(),
+                style(name).blue()
+            ))?;
+            name.clone()
+        },
+        _ => {
+            // Prompt user to select a group
+            let mut menu = select("Select port-forward group");
+            for group in &config.port_forward.groups {
+                menu = menu.item(&group.name, &group.name, "");
+            }
+            menu.interact()?.to_string()
+        }
+    };
+    Ok(group_name)
 }
 
 async fn get_app_services(service_api: &Api<Service>) -> Result<Vec<KubeService>, ArcError> {
@@ -136,8 +234,8 @@ async fn get_app_services(service_api: &Api<Service>) -> Result<Vec<KubeService>
                 .map_or(false, |selector| selector.contains_key("app"))
         }).map(|svc| {
             let name = svc.metadata.name.unwrap();
-            let port = extract_port(svc.spec)?;
-            Ok(KubeService::new(name, port))
+            let remote_port = extract_port(svc.spec)?;
+            Ok(KubeService::new(name, remote_port))
         }).collect::<Result<Vec<_>, ArcError>>()?;
 
     Ok(kube_services)
@@ -163,7 +261,7 @@ async fn prompt_for_service(service_api: &Api<Service>) -> Result<KubeService, A
     Ok(kube_service)
 }
 
-async fn get_service_port(service_api: &Api<Service>, service_name: &str) -> Result<u16, ArcError> {
+async fn get_remote_port(service_api: &Api<Service>, service_name: &str) -> Result<u16, ArcError> {
     let svc = service_api.get(service_name).await?;
     extract_port(svc.spec)
 }
@@ -221,7 +319,7 @@ async fn find_available_port() -> Result<u16, ArcError> {
 async fn port_forward(
     pod_name: &str,
     local_port: u16,
-    pod_port: u16,
+    remote_port: u16,
     pod_api: &Api<Pod>,
 ) -> Result<(), ArcError> {
     // Bind local TCP listener
@@ -235,13 +333,13 @@ async fn port_forward(
         tokio::spawn(async move {
             // Create port-forward connection to the pod
             let port_forward_stream = match pod_api
-                .portforward(&pod_name, &[pod_port])
+                .portforward(&pod_name, &[remote_port])
                 .await
             {
-                Ok(mut pf) => match pf.take_stream(pod_port) {
+                Ok(mut pf) => match pf.take_stream(remote_port) {
                     Some(stream) => stream,
                     None => {
-                        eprintln!("Port {} not available", pod_port);
+                        eprintln!("Port {} not available", remote_port);
                         return;
                     }
                 },

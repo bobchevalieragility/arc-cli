@@ -44,6 +44,9 @@ pub enum ArcError {
     #[error("Missing TaskResult for goal: {0}")]
     InsufficientState(String),
 
+    #[error("Invalid config: {0}")]
+    InvalidConfig(String),
+
     #[error("Expected: {0}, actual: {1}")]
     InvalidGoalParams(String, String),
 
@@ -77,6 +80,9 @@ pub enum ArcError {
     #[error("Tokio Join error: {0}")]
     TokioJoinError(#[from] tokio::task::JoinError),
 
+    #[error("TOML error: {0}")]
+    TomlError(#[from] toml::de::Error),
+
     #[error("Unable to parse secret as string: {0}")]
     UnparseableSecret(String),
 
@@ -103,6 +109,10 @@ impl ArcError {
 
     pub fn insufficient_state(goal: impl Into<String>) -> Self {
         ArcError::InsufficientState(goal.into())
+    }
+    
+    pub fn invalid_config_error(msg: impl Into<String>) -> Self {
+        ArcError::InvalidConfig(msg.into())
     }
 
     pub fn invalid_goal_params(expected: impl Into<String>, actual: impl Into<String>) -> Self {

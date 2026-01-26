@@ -164,3 +164,5 @@ This project uses [release-plz](https://release-plz.iem.at/) to automate release
 
 No manual version bumping or changelog editing required!
 
+### Methodology
+Internally, this tool utilizes task-chaining via a dependency framework to reduce code duplication and to improve maintainability of the code.  See this [doc](https://docs.google.com/document/d/1Fvr7gMZMCNtKUkFURddsq_b4t-vNMayiyHlxMq75i_E/edit?usp=sharing) for a detailed explanation.

@@ -1,6 +1,7 @@
 use std;
 use std::convert::From;
 use chrono::{DateTime, NaiveDate, Utc};
+use crate::args::PROMPT;
 use crate::tasks::Task;
 use crate::tasks::create_tab_completions::CreateTabCompletionsTask;
 use crate::tasks::get_aws_secret::GetAwsSecretTask;
@@ -40,12 +41,12 @@ impl Goal {
     }
 
     pub fn aws_profile_selected() -> Self {
-        let params = GoalParams::AwsProfileSelected { use_current: true };
+        let params = GoalParams::AwsProfileSelected { profile: PROMPT.to_string(), use_current: true };
         Goal::new(GoalType::AwsProfileSelected, params)
     }
 
-    pub fn terminal_aws_profile_selected() -> Self {
-        let params = GoalParams::AwsProfileSelected { use_current: false };
+    pub fn terminal_aws_profile_selected(profile: impl Into<String>) -> Self {
+        let params = GoalParams::AwsProfileSelected { profile: profile.into(), use_current: false };
         Goal::new_terminal(GoalType::AwsProfileSelected, params)
     }
 
@@ -78,12 +79,12 @@ impl Goal {
     }
 
     pub fn kube_context_selected() -> Self {
-        let params = GoalParams::KubeContextSelected { use_current: true };
+        let params = GoalParams::KubeContextSelected { context: PROMPT.to_string(), use_current: true };
         Goal::new(GoalType::KubeContextSelected, params)
     }
 
-    pub fn terminal_kube_context_selected() -> Self {
-        let params = GoalParams::KubeContextSelected { use_current: false };
+    pub fn terminal_kube_context_selected(context: impl Into<String>) -> Self {
+        let params = GoalParams::KubeContextSelected { context: context.into(), use_current: false };
         Goal::new_terminal(GoalType::KubeContextSelected, params)
     }
 
@@ -109,13 +110,14 @@ impl Goal {
         let params = GoalParams::PortForwardEstablished {
             service: Some(service),
             port: None,
+            group: None,
             tear_down: true
         };
         Goal::new(GoalType::PortForwardEstablished, params)
     }
 
-    pub fn terminal_port_forward_established(service: Option<String>, port: Option<u16>) -> Self {
-        let params = GoalParams::PortForwardEstablished { service, port, tear_down: false };
+    pub fn terminal_port_forward_established(service: Option<String>, port: Option<u16>, group: Option<String>) -> Self {
+        let params = GoalParams::PortForwardEstablished { service, port, group, tear_down: false };
         Goal::new_terminal(GoalType::PortForwardEstablished, params)
     }
 
@@ -207,6 +209,7 @@ impl From<GoalType> for String {
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum GoalParams {
     AwsProfileSelected {
+        profile: String,
         use_current: bool,
     },
     AwsSecretKnown {
@@ -219,6 +222,7 @@ pub enum GoalParams {
         output: std::path::PathBuf,
     },
     KubeContextSelected {
+        context: String,
         use_current: bool,
     },
     LogLevelSet {
@@ -231,6 +235,7 @@ pub enum GoalParams {
     PortForwardEstablished {
         service: Option<String>,
         port: Option<u16>,
+        group: Option<String>,
         tear_down: bool,
     },
     VaultSecretKnown {

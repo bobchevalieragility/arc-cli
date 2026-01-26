@@ -20,6 +20,7 @@ use cliclack::progress_bar;
 use crate::{GoalStatus, State};
 use crate::aws::influx::InfluxInstance;
 use crate::aws::rds::RdsInstance;
+use crate::config::CliConfig;
 use crate::errors::ArcError;
 use crate::goals::GoalParams;
 use crate::organization::Organization;
@@ -31,7 +32,7 @@ use crate::tasks::select_kube_context::KubeContextInfo;
 #[async_trait]
 pub trait Task: Send + Sync {
     fn print_intro(&self) -> Result<(), ArcError>;
-    async fn execute(&self, params: &GoalParams, state: &State) -> Result<GoalStatus, ArcError>;
+    async fn execute(&self, params: &GoalParams, config: &CliConfig, state: &State) -> Result<GoalStatus, ArcError>;
 }
 
 #[derive(Debug)]
@@ -46,7 +47,7 @@ pub enum TaskResult {
     LogLevel,
     Organization(Organization),
     PgcliCommand(String),
-    PortForward(PortForwardInfo),
+    PortForward(Vec<PortForwardInfo>),
     RdsInstance(RdsInstance),
     SsoSessionValid,
     TabCompletionsCreated,

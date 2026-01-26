@@ -5,6 +5,7 @@ use serde_json::Value;
 use crate::errors::ArcError;
 use crate::goals::{Goal, GoalParams, GoalType};
 use crate::{GoalStatus, OutroText};
+use crate::config::CliConfig;
 use crate::state::State;
 use crate::tasks::{Task, TaskResult};
 
@@ -18,7 +19,7 @@ impl Task for SetLogLevelTask {
         Ok(())
     }
 
-    async fn execute(&self, params: &GoalParams, state: &State) -> Result<GoalStatus, ArcError> {
+    async fn execute(&self, params: &GoalParams, _config: &CliConfig, state: &State) -> Result<GoalStatus, ArcError> {
         // Ensure that SSO token has not expired
         let sso_goal = Goal::sso_token_valid();
         if !state.contains(&sso_goal) {
@@ -50,7 +51,7 @@ impl Task for SetLogLevelTask {
         }
 
         // Retrieve port-forwarding info from state
-        let port_fwd_info = state.get_port_forward_info(&port_fwd_goal)?;
+        let port_fwd_info = &state.get_port_forward_infos(&port_fwd_goal)?[0];
 
         // Extract parameters from args
         let (package, display_only) = match params {
@@ -60,7 +61,7 @@ impl Task for SetLogLevelTask {
 
         let outro_text = if *display_only {
             // We only want to display the current log level
-            display_log_level(package, port_fwd_info.local_port).await
+            display_log_level(package, port_fwd_info.service.local_port).await
         } else {
             // We want to change the log level
             let level = match params {
@@ -69,7 +70,7 @@ impl Task for SetLogLevelTask {
                 _ => return Err(ArcError::invalid_goal_params(GoalType::LogLevelSet, params)),
             };
 
-            set_log_level(package, port_fwd_info.local_port, &level).await
+            set_log_level(package, port_fwd_info.service.local_port, &level).await
         };
 
         Ok(GoalStatus::Completed(TaskResult::LogLevel, outro_text))

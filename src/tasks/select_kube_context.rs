@@ -6,7 +6,9 @@ use kube::config::Kubeconfig;
 use crate::aws::eks_cluster::EksCluster;
 use crate::errors::ArcError;
 use crate::{GoalStatus, OutroText};
-use crate::goals::GoalParams;
+use crate::args::PROMPT;
+use crate::config::CliConfig;
+use crate::goals::{GoalParams, GoalType};
 use crate::state::State;
 use crate::tasks::{Task, TaskResult};
 
@@ -20,8 +22,8 @@ impl Task for SelectKubeContextTask {
         Ok(())
     }
 
-    async fn execute(&self, params: &GoalParams, _state: &State) -> Result<GoalStatus, ArcError> {
-        if let GoalParams::KubeContextSelected{ use_current: true } = params {
+    async fn execute(&self, params: &GoalParams, _config: &CliConfig, _state: &State) -> Result<GoalStatus, ArcError> {
+        if let GoalParams::KubeContextSelected{ use_current: true, .. } = params {
             if let Ok(current_kubeconfig) = env::var("KUBECONFIG") {
                 let kube_path = PathBuf::from(current_kubeconfig);
                 let config = Kubeconfig::read_from(&kube_path)?;
@@ -43,8 +45,32 @@ impl Task for SelectKubeContextTask {
         let kube_path = default_kube_path().ok_or_else(|| ArcError::HomeDirError)?;
         let mut config = Kubeconfig::read_from(kube_path)?;
 
-        // Prompt user to select a kubernetes context
-        let selected_kube_context = prompt_for_kube_context(&config)?;
+        // Extract context arg from params
+        let context: String = match params {
+            GoalParams::KubeContextSelected{ context: c, .. } => c.to_string(),
+            _ => Err(ArcError::invalid_goal_params(GoalType::KubeContextSelected, params))?,
+        };
+
+        // Determine the name of the K8 context to use
+        let selected_kube_context = if context == PROMPT {
+            // Prompt user to select a K8 context
+            prompt_for_kube_context(&config)?
+        } else {
+            // An explicit context was provided so let's validate that it exists in the K8 config
+            if config.contexts.iter().any(|ctx| ctx.name == context) {
+                context
+            } else {
+                let available_contexts: Vec<String> = config.contexts
+                    .iter()
+                    .map(|ctx| ctx.name.clone())
+                    .collect();
+                return Err(ArcError::KubeContextError(format!(
+                    "Context '{}' not found. Available contexts: {}",
+                    context,
+                    available_contexts.join(", ")
+                )));
+            }
+        };
 
         // Set outro content
         let key = "Switched to Kube context".to_string();

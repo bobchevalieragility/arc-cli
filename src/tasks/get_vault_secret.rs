@@ -8,6 +8,7 @@ use crate::aws::vault;
 use crate::errors::ArcError;
 use crate::goals::{Goal, GoalParams, GoalType};
 use crate::{GoalStatus, OutroText};
+use crate::config::CliConfig;
 use crate::state::State;
 
 #[derive(Debug)]
@@ -20,7 +21,7 @@ impl Task for GetVaultSecretTask {
         Ok(())
     }
 
-    async fn execute(&self, params: &GoalParams, state: &State) -> Result<GoalStatus, ArcError> {
+    async fn execute(&self, params: &GoalParams, _config: &CliConfig, state: &State) -> Result<GoalStatus, ArcError> {
         // If AWS profile info is not available, we need to wait for that goal to complete
         let profile_goal = Goal::aws_profile_selected();
         if !state.contains(&profile_goal) {

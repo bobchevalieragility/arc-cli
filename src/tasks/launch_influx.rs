@@ -3,6 +3,7 @@ use cliclack::intro;
 use crate::errors::ArcError;
 use crate::goals::{Goal, GoalParams};
 use crate::{GoalStatus, OutroText};
+use crate::config::CliConfig;
 use crate::state::State;
 use crate::tasks::{Task, TaskResult};
 
@@ -16,7 +17,7 @@ impl Task for LaunchInfluxTask {
         Ok(())
     }
 
-    async fn execute(&self, _params: &GoalParams, state: &State) -> Result<GoalStatus, ArcError> {
+    async fn execute(&self, _params: &GoalParams, _config: &CliConfig, state: &State) -> Result<GoalStatus, ArcError> {
         // Ensure that SSO token has not expired
         let sso_goal = Goal::sso_token_valid();
         if !state.contains(&sso_goal) {

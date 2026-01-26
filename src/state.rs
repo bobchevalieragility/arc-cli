@@ -78,9 +78,9 @@ impl State {
         }
     }
 
-    pub(crate) fn get_port_forward_info(&self, goal: &Goal) -> Result<&PortForwardInfo, ArcError> {
+    pub(crate) fn get_port_forward_infos(&self, goal: &Goal) -> Result<&Vec<PortForwardInfo>, ArcError> {
         match self.get(goal)? {
-            TaskResult::PortForward(info) => Ok(info),
+            TaskResult::PortForward(infos) => Ok(infos),
             result => Err(ArcError::invalid_state(goal, "PortForward", result)),
         }
     }

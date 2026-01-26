@@ -4,9 +4,10 @@ use std::fs;
 use url::Url;
 use vaultrs::auth::oidc;
 use vaultrs::token;
-use crate::{config_path, GoalStatus, OutroText};
+use crate::{config_dir, GoalStatus, OutroText};
 use crate::aws::vault;
 use crate::aws::vault::VaultInstance;
+use crate::config::CliConfig;
 use crate::errors::ArcError;
 use crate::goals::{Goal, GoalParams};
 use crate::state::State;
@@ -22,7 +23,7 @@ impl Task for LoginToVaultTask {
         Ok(())
     }
 
-    async fn execute(&self, _params: &GoalParams, state: &State) -> Result<GoalStatus, ArcError> {
+    async fn execute(&self, _params: &GoalParams, _config: &CliConfig, state: &State) -> Result<GoalStatus, ArcError> {
         // If AWS profile info is not available, we need to wait for that goal to complete
         let profile_goal = Goal::aws_profile_selected();
         if !state.contains(&profile_goal) {
@@ -62,7 +63,7 @@ impl Task for LoginToVaultTask {
 }
 
 fn vault_token_path() -> Result<std::path::PathBuf, ArcError> {
-    let mut path = config_path()?;
+    let mut path = config_dir()?;
     path.push("vault_token");
     Ok(path)
 }

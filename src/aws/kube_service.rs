@@ -1,4 +1,4 @@
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct KubeService {
     pub name: String,
     pub port: u16,
