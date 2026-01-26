@@ -6,6 +6,9 @@ use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use crate::tasks::set_log_level::Level;
 use crate::goals::Goal;
 
+// This constant must be kept in sync with its usage in the PortForward #[arg] attribute below
+pub const PROMPT: &str = "PROMPT";
+
 #[derive(Parser, Clone, Debug, PartialEq, Eq, Hash)]
 #[command(author, version, about = "CLI Tool for Arc Backend")]
 pub struct CliArgs {
@@ -60,7 +63,7 @@ pub enum CliCommand {
         #[arg(short, long, help = "Path to output file")]
         output: PathBuf,
     },
-    #[command(about = "Start port-forwarding to a Kubernetes service")]
+    #[command(about = "Start port-forwarding to one or more Kubernetes service(s)")]
     PortForward {
         #[arg(short, long, help = "Service name, e.g. 'metrics' (if omitted, will prompt)", conflicts_with = "group")]
         service: Option<String>,
@@ -68,8 +71,8 @@ pub enum CliCommand {
         #[arg(short, long, help = "Local port (defaults to random, unused port)", conflicts_with = "group")]
         port: Option<u16>,
 
-        #[arg(short, long, help = "Group of services to forward to (must be defined in ~/.arc-cli/config.toml)", conflicts_with = "service")]
-        group: bool,
+        #[arg(short, long, help = "Group of services to forward to, if blank you'll be prompted to select a group", conflicts_with = "service", num_args = 0..=1, default_missing_value = "PROMPT")]
+        group: Option<String>,
     },
     #[command(about = "Switch AWS profile and/or Kubernetes context")]
     Switch {

@@ -12,6 +12,7 @@ use crate::aws::kube_service::KubeService;
 use crate::errors::ArcError;
 use crate::goals::{Goal, GoalParams, GoalType};
 use crate::{GoalStatus, OutroText};
+use crate::args::PROMPT;
 use crate::config::CliConfig;
 use crate::state::State;
 use crate::tasks::{sleep_indicator, Task, TaskResult};
@@ -158,45 +159,30 @@ async fn get_target_services(
             let local_port = find_available_port().await?;
             Ok(vec![TargetService { service: svc, local_port }])
         },
-        GoalParams::PortForwardEstablished { service: None, port: Some(p), group: false, .. } => {
+        GoalParams::PortForwardEstablished { service: None, port: Some(p), .. } => {
             // Single local port specified
             let svc = prompt_for_service(service_api).await?;
             Ok(vec![TargetService { service: svc, local_port: *p }])
         },
-        GoalParams::PortForwardEstablished { service: None, port: None, group: false, .. } => {
+        GoalParams::PortForwardEstablished { service: None, port: None, group: None, .. } => {
             // Single port forward desired, but neither service nor port specified
             let svc = prompt_for_service(service_api).await?;
             let local_port = find_available_port().await?;
             Ok(vec![TargetService { service: svc, local_port }])
         },
-        GoalParams::PortForwardEstablished { group: true, .. } => {
-            // Port-forwarding to a group of services is desired
-            let group_name = match config.port_forward.groups.len() {
-                0 => return Err(ArcError::invalid_config_error("No port-forward groups defined in config")),
-                1 => {
-                    let name = &config.port_forward.groups[0].name;
-                    cliclack::log::info(format!(
-                        "Selecting only group found in {}: {}",
-                        style(crate::config_file()?.display()).dim(),
-                        style(name).blue()
-                    ))?;
-                    name
-                },
-                _ => {
-                    // Prompt user to select a group
-                    let mut menu = select("Select port-forward group");
-                    for group in &config.port_forward.groups {
-                        menu = menu.item(&group.name, &group.name, "");
-                    }
-                    menu.interact()?
-                }
+        GoalParams::PortForwardEstablished { group: Some(group_name), .. } => {
+            // Port-forward to a group of services
+            let group_name_str = if group_name != PROMPT {
+                group_name.as_str()
+            } else {
+                &prompt_for_group_name(config)?
             };
 
             // Find the ServiceGroup whose name matches group_name
             let service_group = config.port_forward.groups
                 .iter()
-                .find(|group| &group.name == group_name)
-                .ok_or_else(|| ArcError::invalid_config_error(&format!("Port-forward group '{}' not found in config", group_name)))?;
+                .find(|group| group.name == group_name_str)
+                .ok_or_else(|| ArcError::invalid_config_error(&format!("Port-forward group '{}' not found in config", group_name_str)))?;
 
             // Convert the services to TargetService objects
             let mut targets = Vec::new();
@@ -209,6 +195,30 @@ async fn get_target_services(
         },
         _ => Err(ArcError::invalid_goal_params(GoalType::PortForwardEstablished, params)),
     }
+}
+
+fn prompt_for_group_name(config: &CliConfig) -> Result<String, ArcError> {
+    let group_name = match config.port_forward.groups.len() {
+        0 => return Err(ArcError::invalid_config_error("No port-forward groups defined in config")),
+        1 => {
+            let name = &config.port_forward.groups[0].name;
+            cliclack::log::info(format!(
+                "Selecting only group found in {}: {}",
+                style(crate::config_file()?.display()).dim(),
+                style(name).blue()
+            ))?;
+            name.clone()
+        },
+        _ => {
+            // Prompt user to select a group
+            let mut menu = select("Select port-forward group");
+            for group in &config.port_forward.groups {
+                menu = menu.item(&group.name, &group.name, "");
+            }
+            menu.interact()?.to_string()
+        }
+    };
+    Ok(group_name)
 }
 
 async fn get_app_services(service_api: &Api<Service>) -> Result<Vec<KubeService>, ArcError> {

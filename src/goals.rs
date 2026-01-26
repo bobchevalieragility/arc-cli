@@ -109,13 +109,13 @@ impl Goal {
         let params = GoalParams::PortForwardEstablished {
             service: Some(service),
             port: None,
-            group: false,
+            group: None,
             tear_down: true
         };
         Goal::new(GoalType::PortForwardEstablished, params)
     }
 
-    pub fn terminal_port_forward_established(service: Option<String>, port: Option<u16>, group: bool) -> Self {
+    pub fn terminal_port_forward_established(service: Option<String>, port: Option<u16>, group: Option<String>) -> Self {
         let params = GoalParams::PortForwardEstablished { service, port, group, tear_down: false };
         Goal::new_terminal(GoalType::PortForwardEstablished, params)
     }
@@ -232,7 +232,7 @@ pub enum GoalParams {
     PortForwardEstablished {
         service: Option<String>,
         port: Option<u16>,
-        group: bool,
+        group: Option<String>,
         tear_down: bool,
     },
     VaultSecretKnown {
