@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.2.4](https://github.com/bobchevalieragility/arc-cli/compare/v0.2.3...v0.2.4)
+
+### ⛰️ Features
+
+
+- Allow AWS profile and K8 context to be explicitly specified - ([4a6ea0a](https://github.com/bobchevalieragility/arc-cli/commit/4a6ea0aecd4ebf17e45b189f866a621ea02e0294))
+- Allow port-forward groups - ([a35b0d7](https://github.com/bobchevalieragility/arc-cli/commit/a35b0d794941486eee0949c8b362f930b779458b))
+
+### 📚 Documentation
+
+
+- Include link to task-chaining writeup in README - ([caaccc5](https://github.com/bobchevalieragility/arc-cli/commit/caaccc52495b0ca6133efc6e96377005509c47e7))
+
+
 ## [0.2.3](https://github.com/bobchevalieragility/arc-cli/compare/v0.2.2...v0.2.3)
 
 ### 🐛 Bug Fixes
