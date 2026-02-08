@@ -34,6 +34,14 @@ pub struct CliArgs {
     )]
     kube_context: Option<String>,
 
+    #[arg(
+        short,
+        long,
+        global = true,
+        help = "Print to std_out (useful when calling `arc` from scripts)"
+    )]
+    raw_output: bool,
+
     #[command(subcommand)]
     pub(crate) command: CliCommand,
 }
@@ -43,6 +51,7 @@ impl CliArgs {
         GlobalParams {
             aws_profile: self.aws_profile.clone(),
             kube_context: self.kube_context.clone(),
+            raw_output: self.raw_output,
         }
     }
 
