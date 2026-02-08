@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.2.6](https://github.com/bobchevalieragility/arc-cli/compare/v0.2.5...v0.2.6)
+
+### ⛰️ Features
+
+
+- Add --raw-output arg to allow arc to be called from within a script - ([883b1ff](https://github.com/bobchevalieragility/arc-cli/commit/883b1ff99b2ba9c7aecf583468130cd39c009788))
+
+
 ## [0.2.5](https://github.com/bobchevalieragility/arc-cli/compare/v0.2.4...v0.2.5)
 
 ### ⛰️ Features
