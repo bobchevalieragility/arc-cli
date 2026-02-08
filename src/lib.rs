@@ -86,14 +86,26 @@ async fn execute_goals(
             GoalStatus::Needs(dependent_goal) => goals.push(dependent_goal),
             GoalStatus::Completed(result, outro_text) => {
                 if *is_terminal_goal {
-                    // Print outro message
-                    if let OutroText::SingleLine{ key, value } = outro_text {
-                        let text = format!("{}: {}", style(key).green(), style(value).dim());
-                        outro(text)?;
-                    } else if let OutroText::MultiLine{ key, value } = outro_text {
-                        let prompt = style(key).green();
-                        let message = style(value).dim();
-                        outro_note(prompt, message)?;
+                    // Print outro message (to std_err)
+                    let raw_value = match outro_text {
+                        OutroText::SingleLine{ key, value } => {
+                            let text = format!("{}: {}", style(&key).green(), style(&value).dim());
+                            outro(text)?;
+                            value
+                        },
+                        OutroText::MultiLine{ key, value } => {
+                            let prompt = style(&key).green();
+                            let message = style(&value).dim();
+                            outro_note(prompt, message)?;
+                            value
+                        },
+                        OutroText::None => String::new(),
+                    };
+
+                    // Print value (to std_out) if --raw flag is provided
+                    // This is useful when calling `arc` from scripts
+                    if global_params.raw_output {
+                        println!("{raw_value}");
                     }
                 }
 
@@ -109,9 +121,13 @@ async fn execute_goals(
         }
     }
 
-    // This is the final output that the parent shell should eval.
-    // All other program outputs are sent to stderr (i.e. clickack interactive menus, outros, etc).
-    Ok(println!("{eval_string}"))
+    if !global_params.raw_output {
+        // This is the final output that the parent shell should eval (unless called from a script)
+        // All other program outputs are sent to stderr (i.e. clickack interactive menus, outros, etc).
+        println!("{eval_string}");
+    }
+
+    Ok(())
 }
 
 pub enum GoalStatus {
