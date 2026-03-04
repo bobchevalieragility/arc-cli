@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/bobchevalieragility/arc-cli/compare/v0.2.6...v0.3.0)
+
+### ⛰️ Features
+
+
+- Monitor ArgoCD application statuses - ([6b870df](https://github.com/bobchevalieragility/arc-cli/commit/6b870dfc04dcc114c474c53fa9e550b15e8357c0))
+
+
 ## [0.2.6](https://github.com/bobchevalieragility/arc-cli/compare/v0.2.5...v0.2.6)
 
 ### ⛰️ Features
