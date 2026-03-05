@@ -15,7 +15,6 @@ use crate::tasks::port_forward::PortForwardTask;
 use crate::tasks::influx_dump::InfluxDumpTask;
 use crate::tasks::run_pgcli::RunPgcliTask;
 use crate::tasks::select_actuator_service::SelectActuatorServiceTask;
-use crate::tasks::select_argo_instance::SelectArgoInstanceTask;
 use crate::tasks::select_aws_profile::SelectAwsProfileTask;
 use crate::tasks::select_influx_instance::SelectInfluxInstanceTask;
 use crate::tasks::select_kube_context::SelectKubeContextTask;
@@ -165,10 +164,6 @@ impl Goal {
         Goal::new_terminal(GoalType::TabCompletionsExist, GoalParams::None)
     }
 
-    pub fn argo_instance_selected() -> Self {
-        Goal::new(GoalType::ArgoInstanceSelected, GoalParams::None)
-    }
-
     pub fn terminal_argo(pull_request: Option<u32>) -> Self {
         let params = GoalParams::ArgoStatusesKnown { pull_request };
         Goal::new_terminal(GoalType::ArgoStatusKnown, params)
@@ -199,7 +194,6 @@ impl From<&Goal> for String {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum GoalType {
     ActuatorServiceSelected,
-    ArgoInstanceSelected,
     ArgoStatusKnown,
     AwsProfileSelected,
     AwsSecretKnown,
@@ -222,7 +216,6 @@ impl GoalType {
     pub fn to_task(&self) -> Box<dyn Task> {
         match self {
             GoalType::ActuatorServiceSelected => Box::new(SelectActuatorServiceTask),
-            GoalType::ArgoInstanceSelected => Box::new(SelectArgoInstanceTask),
             GoalType::ArgoStatusKnown => Box::new(GetArgoAppStatusesTask),
             GoalType::AwsProfileSelected => Box::new(SelectAwsProfileTask),
             GoalType::AwsSecretKnown => Box::new(GetAwsSecretTask),

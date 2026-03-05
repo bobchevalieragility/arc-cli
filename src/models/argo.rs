@@ -88,7 +88,7 @@ pub(crate) struct ArgoMetadata {
 pub(crate) struct ArgoStatus {
     sync: ArgoSyncStatus,
     #[serde(rename = "operationState")]
-    operation_state: ArgoOperationState,
+    operation_state: Option<ArgoOperationState>,
     summary: Option<ArgoSummary>,
 }
 
@@ -162,7 +162,8 @@ impl From<ArgoApplication> for AppInfo {
         AppInfo {
             name: argo_app.metadata.name,
             sync_status: argo_app.status.sync.status,
-            finished_at: argo_app.status.operation_state.finished_at,
+            finished_at: argo_app.status.operation_state
+                .and_then(|op_state| op_state.finished_at),
             image_tag,
         }
     }
@@ -181,8 +182,9 @@ fn k8_resource_identity(app_name: &str) -> (&str, &str, &str) {
 }
 
 fn extract_resource_image_tag(argo_app: &ArgoApplication, group: &str, kind: &str, repo_name: &str) -> Option<String> {
-    argo_app.status.operation_state.sync_result
+    argo_app.status.operation_state
         .as_ref()
+        .and_then(|op_state| op_state.sync_result.as_ref())
         .and_then(|sr| sr.resources.iter()
             .find(|r| r.group == group && r.kind == kind && r.name == repo_name)
             .and_then(|r| r.images.first())

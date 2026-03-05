@@ -58,17 +58,8 @@ impl Task for GetArgoAppStatusesTask {
                     (ArgoCdInstance::from(&profile), HashMap::new())
                 } else {
                     // No AWS profile is currently active, prompt user to select ArgoCD instance
-                    //TODO inline this selection logic
-                    // If an Argo instance has not yet been selected, we need to wait for that goal to complete
-                    let argo_selection_goal = Goal::argo_instance_selected();
-                    if !state.contains(&argo_selection_goal) {
-                        return Ok(GoalStatus::Needs(argo_selection_goal));
-                    }
-
-                    // Retrieve selected Argo instance from state
-                    let argo_instance = state.get_argo_instance(&argo_selection_goal)?;
-                    (argo_instance.clone(), HashMap::new())
-
+                    let argo_instance = prompt_for_argo_instance()?;
+                    (argo_instance, HashMap::new())
                 }
             },
             _ => return Err(ArcError::invalid_goal_params(GoalType::ArgoStatusKnown, params)),
@@ -235,4 +226,17 @@ fn extract_app_target_version(pr_file: &GithubPrFile) -> Option<String> {
     }
 
     None
+}
+
+fn prompt_for_argo_instance() -> Result<ArgoCdInstance, ArcError> {
+    // Get a list of all available ArgoCD instances
+    let available_argo_instances = ArgoCdInstance::all();
+
+    let mut menu = cliclack::select("Select ArgoCD instance");
+    for argo in &available_argo_instances {
+        menu = menu.item(argo.name(), argo.name(), "");
+    }
+
+    let argo_name = menu.interact()?.to_string();
+    Ok(ArgoCdInstance::from(argo_name.as_str()))
 }
