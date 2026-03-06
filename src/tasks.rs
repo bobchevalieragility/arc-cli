@@ -12,7 +12,7 @@ pub mod select_influx_instance;
 pub mod select_kube_context;
 pub mod select_organization;
 pub mod select_rds_instance;
-pub mod set_log_level;
+pub mod logging;
 pub mod get_argo_app_statuses;
 pub mod get_github_pr_files;
 

@@ -3,6 +3,7 @@ use std::convert::From;
 use chrono::{DateTime, NaiveDate, Utc};
 use crate::models::args::PROMPT;
 use crate::models::aws_profile::AwsAccount;
+use crate::models::log_level::LogLevel;
 use crate::tasks::Task;
 use crate::tasks::create_tab_completions::CreateTabCompletionsTask;
 use crate::tasks::get_aws_secret::GetAwsSecretTask;
@@ -20,7 +21,7 @@ use crate::tasks::select_influx_instance::SelectInfluxInstanceTask;
 use crate::tasks::select_kube_context::SelectKubeContextTask;
 use crate::tasks::select_organization::SelectOrganizationTask;
 use crate::tasks::select_rds_instance::SelectRdsInstanceTask;
-use crate::tasks::set_log_level::{Level, SetLogLevelTask};
+use crate::tasks::logging::LoggingTask;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Goal {
@@ -108,14 +109,22 @@ impl Goal {
         Goal::new_terminal(GoalType::KubeContextSelected, params)
     }
 
+    pub fn terminal_log_level_known(
+        service: Option<String>,
+        package: String,
+        kube_context: Option<String>,
+    ) -> Self {
+        let params = GoalParams::LogLevelKnown { service, package, kube_context };
+        Goal::new_terminal(GoalType::LogLevelKnown, params)
+    }
+
     pub fn terminal_log_level_set(
         service: Option<String>,
         package: String,
-        level: Option<Level>,
-        display_only: bool,
+        level: Option<LogLevel>,
         kube_context: Option<String>,
     ) -> Self {
-        let params = GoalParams::LogLevelSet { service, package, level, display_only, kube_context };
+        let params = GoalParams::LogLevelSet { service, package, level, kube_context };
         Goal::new_terminal(GoalType::LogLevelSet, params)
     }
 
@@ -202,6 +211,7 @@ pub enum GoalType {
     InfluxLaunched,
     InfluxDumpCompleted,
     KubeContextSelected,
+    LogLevelKnown,
     LogLevelSet,
     OrganizationSelected,
     PgcliRunning,
@@ -224,7 +234,8 @@ impl GoalType {
             GoalType::InfluxLaunched => Box::new(LaunchInfluxTask),
             GoalType::InfluxDumpCompleted => Box::new(InfluxDumpTask),
             GoalType::KubeContextSelected => Box::new(SelectKubeContextTask),
-            GoalType::LogLevelSet => Box::new(SetLogLevelTask),
+            GoalType::LogLevelKnown => Box::new(LoggingTask),
+            GoalType::LogLevelSet => Box::new(LoggingTask),
             GoalType::OrganizationSelected => Box::new(SelectOrganizationTask),
             GoalType::PgcliRunning => Box::new(RunPgcliTask),
             GoalType::PortForwardEstablished => Box::new(PortForwardTask),
@@ -283,11 +294,15 @@ pub enum GoalParams {
         context: String,
         use_current: bool,
     },
+    LogLevelKnown {
+        service: Option<String>,
+        package: String,
+        kube_context: Option<String>,
+    },
     LogLevelSet {
         service: Option<String>,
         package: String,
-        level: Option<Level>,
-        display_only: bool,
+        level: Option<LogLevel>,
         kube_context: Option<String>,
     },
     None,
