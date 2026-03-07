@@ -45,6 +45,12 @@ jobs:
           name: backend.sh
           path: scripts/backend.sh
 
+      - name: Upload default config
+        uses: actions/upload-artifact@v4
+        with:
+          name: config.toml
+          path: assets/config.toml
+
   build-binaries:
     name: Build Binaries
     needs: release-plz
@@ -153,6 +159,7 @@ jobs:
             artifacts/backend-macos-arm64/backend-macos-arm64
             artifacts/backend-windows-amd64.exe/backend-windows-amd64.exe
             artifacts/backend.sh/backend.sh
+            artifacts/config.toml/config.toml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
