@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::models::vault::VaultInstance;
 use crate::models::errors::ArcError;
 
-const KEYRING_SERVICE: &str = "arc-backend-vault";
+const KEYRING_SERVICE: &str = "arcli-backend-vault";
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct VaultCredentials {

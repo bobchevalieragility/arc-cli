@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::models::argo::ArgoCdInstance;
 use crate::models::errors::ArcError;
 
-const KEYRING_SERVICE: &str = "arc-backend-argo";
+const KEYRING_SERVICE: &str = "arcli-backend-argo";
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct ArgoCredentials {

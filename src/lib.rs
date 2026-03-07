@@ -93,7 +93,7 @@ async fn execute_goals(
                     };
 
                     // Print value (to std_out) if --raw flag is provided
-                    // This is useful when calling `arc` from scripts
+                    // This is useful when calling `backend` from scripts
                     if show_raw_output {
                         println!("{raw_value}");
                     }
@@ -141,9 +141,9 @@ impl OutroText {
 }
 
 fn config_dir() -> Result<std::path::PathBuf, ArcError> {
-    //TODO .arc-cli path should be configurable
+    //TODO .arcli-backend path should be configurable
     let mut path = home::home_dir().ok_or_else(|| ArcError::HomeDirError)?;
-    path.push(".arc-cli");
+    path.push(".arcli-backend");
 
     // Create the config directory if it doesn't already exist
     std::fs::create_dir_all(&path)?;

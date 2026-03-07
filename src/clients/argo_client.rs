@@ -104,7 +104,7 @@ impl ArgoClient {
 
     async fn fetch(&self, url: &str, token: &str) -> Result<reqwest::Response, ArcError> {
         let request = self.client.get(url)
-            .header(reqwest::header::USER_AGENT, "arc-backend")
+            .header(reqwest::header::USER_AGENT, "arcli-backend")
             .header(reqwest::header::AUTHORIZATION, format!("Bearer {}", token));
 
         let response = request.send().await?;
