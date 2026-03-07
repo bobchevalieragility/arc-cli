@@ -1,6 +1,6 @@
 use clap::Parser;
 use console::style;
-use arc_cli::{CliArgs, run};
+use arcli_backend::{CliArgs, run};
 
 #[tokio::main]
 async fn main() {

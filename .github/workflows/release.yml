@@ -42,8 +42,8 @@ jobs:
       - name: Upload wrapper script
         uses: actions/upload-artifact@v4
         with:
-          name: arc.sh
-          path: scripts/arc.sh
+          name: backend.sh
+          path: scripts/backend.sh
 
   build-binaries:
     name: Build Binaries
@@ -54,16 +54,16 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: arc-linux-amd64
+            artifact_name: backend-linux-amd64
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact_name: arc-macos-amd64
+            artifact_name: backend-macos-amd64
           - os: macos-latest
             target: aarch64-apple-darwin
-            artifact_name: arc-macos-arm64
+            artifact_name: backend-macos-arm64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: arc-windows-amd64.exe
+            artifact_name: backend-windows-amd64.exe
 
     runs-on: ${{ matrix.os }}
 
@@ -114,15 +114,15 @@ jobs:
       - name: Code sign binary (macOS)
         if: matrix.os == 'macos-latest'
         run: |
-          codesign -s - --force --identifier com.agilityrobotics.arc.backend target/${{ matrix.target }}/release/arc
+          codesign -s - --force --identifier com.agilityrobotics.arcli.backend target/${{ matrix.target }}/release/backend
 
       - name: Rename binary
         shell: bash
         run: |
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cp target/${{ matrix.target }}/release/arc.exe ${{ matrix.artifact_name }}
+            cp target/${{ matrix.target }}/release/backend.exe ${{ matrix.artifact_name }}
           else
-            cp target/${{ matrix.target }}/release/arc ${{ matrix.artifact_name }}
+            cp target/${{ matrix.target }}/release/backend ${{ matrix.artifact_name }}
           fi
 
       - name: Upload artifact
@@ -148,11 +148,11 @@ jobs:
         with:
           tag_name: ${{ needs.release-plz.outputs.tag_name }}
           files: |
-            artifacts/arc-linux-amd64/arc-linux-amd64
-            artifacts/arc-macos-amd64/arc-macos-amd64
-            artifacts/arc-macos-arm64/arc-macos-arm64
-            artifacts/arc-windows-amd64.exe/arc-windows-amd64.exe
-            artifacts/arc.sh/arc.sh
+            artifacts/backend-linux-amd64/backend-linux-amd64
+            artifacts/backend-macos-amd64/backend-macos-amd64
+            artifacts/backend-macos-arm64/backend-macos-arm64
+            artifacts/backend-windows-amd64.exe/backend-windows-amd64.exe
+            artifacts/backend.sh/backend.sh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

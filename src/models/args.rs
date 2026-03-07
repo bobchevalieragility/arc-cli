@@ -17,7 +17,7 @@ pub struct CliArgs {
         long,
         global = true,
         hide = true,
-        help = "Print to std_out (useful when calling `arc` from scripts)"
+        help = "Print to std_out (useful when calling `backend` from scripts)"
     )]
     pub(crate) raw_output: bool,
 

@@ -87,7 +87,7 @@ impl Task for SelectKubeContextTask {
         // Create a unique, terminal-specific kubeconfig file in the tmp dir
         let timestamp = chrono::Local::now().format("%Y%m%dT%H%M%S");
         let tmp_kube_path = env::temp_dir()
-            .join(format!("arc_kubeconfig_{}", timestamp));
+            .join(format!("arcli_backend_kubeconfig_{}", timestamp));
 
         // Save the in-memory config to the new kubeconfig file
         let yaml_data = serde_yaml::to_string(&config)?;

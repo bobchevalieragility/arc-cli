@@ -36,7 +36,7 @@ impl Task for CreateTabCompletionsTask {
 
         // Generate the completion file
         let mut cmd = CliArgs::command();
-        generate(shell, &mut cmd, "arc", &mut file);
+        generate(shell, &mut cmd, "backend", &mut file);
 
         let prompt = "Tab completions file generated".to_string();
         let msg = format!("Completions file: {}\nSource this file from your startup script (i.e. ~/.zshrc) to enable.", path.display());
@@ -67,6 +67,6 @@ fn prompt_for_shell() -> Result<Shell, ArcError> {
 
 fn completions_path(shell: impl Into<String>) -> Result<std::path::PathBuf, ArcError> {
     let mut path = config_dir()?;
-    path.push(format!("arc-completions-{}", shell.into()));
+    path.push(format!("backend-completions-{}", shell.into()));
     Ok(path)
 }
