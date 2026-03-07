@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+## [0.3.7](https://github.com/bobchevalieragility/arcli-backend/compare/v0.3.6...v0.3.7)
+
+
 ## [0.3.6](https://github.com/bobchevalieragility/arcli-backend/compare/v0.3.5...v0.3.6)
 
 ### 🚜 Refactor
