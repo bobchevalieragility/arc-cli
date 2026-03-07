@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.3.6](https://github.com/bobchevalieragility/arcli-backend/compare/v0.3.5...v0.3.6)
+
+### 🚜 Refactor
+
+
+- Sort commands alphabetically - ([82e9a03](https://github.com/bobchevalieragility/arcli-backend/commit/82e9a03a4e8bd3e0704b247132ecbb077e689508))
+
+
 ## [0.3.5](https://github.com/bobchevalieragility/arcli-backend/compare/v0.3.4...v0.3.5)
 
 ### 🚜 Refactor
