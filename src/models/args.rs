@@ -53,12 +53,18 @@ impl CliArgs {
             },
             CliCommand::Completions => vec![Goal::terminal_tab_completions()],
             CliCommand::Pgcli { aws_profile } => vec![Goal::terminal_pgcli_running(aws_profile)],
+            CliCommand::Influx { action } => {
+                match action {
+                    InfluxAction::Ui { aws_profile } => vec![
+                        Goal::terminal_influx_launched(aws_profile)
+                    ],
+                    InfluxAction::Dump { day, start, end, output_dir, file_per_measurement, aws_profile } => vec![
+                        Goal::terminal_influx_dump_completed(day, start, end, output_dir, file_per_measurement, aws_profile)
+                    ],
+                }
+            },
             CliCommand::PortForward { namespace, service, port, group, kube_context } => vec![
                 Goal::terminal_port_forward_established(namespace, service, port, group, kube_context)
-            ],
-            CliCommand::InfluxUi { aws_profile } => vec![Goal::terminal_influx_launched(aws_profile)],
-            CliCommand::InfluxDump { day, start, end, output_dir, file_per_measurement, aws_profile } => vec![
-                Goal::terminal_influx_dump_completed(day, start, end, output_dir, file_per_measurement, aws_profile)
             ],
             CliCommand::Switch { aws_profile, kube_context } => {
                 // Use global parameters to determine which prompts are needed, if any
@@ -101,46 +107,10 @@ pub enum CliCommand {
         // Will be PROMPT if the user included the flag without a value, None if they didn't include the flag at all
         aws_profile: Option<String>,
     },
-    #[command(about = "Launch the InfluxDB UI")]
-    InfluxUi {
-        #[arg(short = 'a', long, help = "Use AWS profile", num_args = 0..=1, default_missing_value = "PROMPT")]
-        // Will be PROMPT if the user included the flag without a value, None if they didn't include the flag at all
-        aws_profile: Option<String>,
-    },
-    #[command(about = "Query InfluxDB and dump results to a CSV file")]
-    InfluxDump {
-        #[arg(
-            short, long, help = "Query for all records on this day (e.g., '2026-01-19')",
-            conflicts_with = "start"
-        )]
-        day: Option<NaiveDate>,
-
-        #[arg(
-            short, long,
-            help = "Start time as either RFC3339 or ms since epoch (e.g. '2026-01-01T00:00:00Z')",
-            value_parser = parse_datetime,
-            conflicts_with = "day"
-        )]
-        start: Option<DateTime<Utc>>,
-
-        #[arg(
-            short, long,
-            help = "End time as either RFC3339 or ms since epoch. Defaults to NOW. (e.g. '2025-01-19T00:00:00Z')",
-            value_parser = parse_datetime,
-            requires = "start",
-            conflicts_with = "day"
-        )]
-        end: Option<DateTime<Utc>>,
-
-        #[arg(short, long, help = "Path to output file", default_value = ".")]
-        output_dir: PathBuf,
-
-        #[arg(short, long, default_value = "false", help = "Create separate files for each measurement type")]
-        file_per_measurement: bool,
-
-        #[arg(short = 'a', long, help = "Use AWS profile", num_args = 0..=1, default_missing_value = "PROMPT")]
-        // Will be PROMPT if the user included the flag without a value, None if they didn't include the flag at all
-        aws_profile: Option<String>,
+    #[command(about = "Interact with InfluxDB")]
+    Influx {
+        #[command(subcommand)]
+        action: InfluxAction,
     },
     #[command(about = "Start port-forwarding to one or more Kubernetes service(s)")]
     PortForward {
@@ -253,6 +223,51 @@ pub enum LoggingAction {
         #[arg(short = 'k', long, help = "Use K8 context", num_args = 0..=1, default_missing_value = "PROMPT")]
         // Will be PROMPT if the user included the flag without a value, None if they didn't include the flag at all
         kube_context: Option<String>,
+    },
+}
+
+#[derive(Subcommand, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum InfluxAction {
+    #[command(about = "Launch the InfluxDB UI")]
+    Ui {
+        #[arg(short = 'a', long, help = "Use AWS profile", num_args = 0..=1, default_missing_value = "PROMPT")]
+        // Will be PROMPT if the user included the flag without a value, None if they didn't include the flag at all
+        aws_profile: Option<String>,
+    },
+    #[command(about = "Query InfluxDB and dump results to a CSV file")]
+    Dump {
+        #[arg(
+            short, long, help = "Query for all records on this day (e.g., '2026-01-19')",
+            conflicts_with = "start"
+        )]
+        day: Option<NaiveDate>,
+
+        #[arg(
+            short, long,
+            help = "Start time as either RFC3339 or ms since epoch (e.g. '2026-01-01T00:00:00Z')",
+            value_parser = parse_datetime,
+            conflicts_with = "day"
+        )]
+        start: Option<DateTime<Utc>>,
+
+        #[arg(
+            short, long,
+            help = "End time as either RFC3339 or ms since epoch. Defaults to NOW. (e.g. '2025-01-19T00:00:00Z')",
+            value_parser = parse_datetime,
+            requires = "start",
+            conflicts_with = "day"
+        )]
+        end: Option<DateTime<Utc>>,
+
+        #[arg(short, long, help = "Path to output file", default_value = ".")]
+        output_dir: PathBuf,
+
+        #[arg(short, long, default_value = "false", help = "Create separate files for each measurement type")]
+        file_per_measurement: bool,
+
+        #[arg(short = 'a', long, help = "Use AWS profile", num_args = 0..=1, default_missing_value = "PROMPT")]
+        // Will be PROMPT if the user included the flag without a value, None if they didn't include the flag at all
+        aws_profile: Option<String>,
     },
 }
 
